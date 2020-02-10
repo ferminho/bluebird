@@ -20,6 +20,7 @@ CONST
    SKIP_MENU = true;
    SKIP_INTRO = true;
    LOGGING = true;
+   LOG_FILE = "bluebird.log";
 
    // Drawing parameters
    SCREEN_RES = m320x240;
@@ -369,7 +370,7 @@ BEGIN
       ELSE
          line = text;
       END
-      system("echo " + line + " >> bluebird.log");
+      system("echo " + line + " >> " + LOG_FILE);
    END
 
 END
