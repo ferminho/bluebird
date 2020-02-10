@@ -14,6 +14,7 @@ CONST
 
    BASE_PATH = "ferminho\bluebird\";
 
+   // Dev config
    STARTING_LEVEL = 0;
    SKIP_LOGOS = true;
    SKIP_MENU = true;
@@ -77,15 +78,16 @@ GLOBAL
 
 LOCAL
 
+   // precision coordinates
    INT px, INT py, INT pz;
 
 BEGIN
 
-  init();
+   init();
 
-  orchestrator();
+   orchestrator();
 
-  let_me_alone();
+   let_me_alone();
 
 END
 //--------------------------------------------
@@ -176,7 +178,6 @@ FUNCTION play_game();
 BEGIN
 
    play_intro();
-
    play_level(STARTING_LEVEL);
 
 END
@@ -207,8 +208,6 @@ BEGIN
    id_camera = camera();
 
    start_mode8(id_camera, MAIN_M8, MAIN_REGION);
-     // BYTE fog_color[2];
-     // BYTE fog_distance[1];
    set_env_color(level_info[level].fog_color[0],
                  level_info[level].fog_color[1],
                  level_info[level].fog_color[2]);
@@ -264,6 +263,7 @@ BEGIN
    write_int(0,0,0,0,&x);
    write_int(0,0,8,0,&y);
    write_int(0,0,16,0,&z);
+   write_int(0,0,24,0,&fps);
 
    px = grid_x0;
    py = grid_y0;
