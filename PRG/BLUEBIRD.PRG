@@ -19,6 +19,7 @@ CONST
    SKIP_LOGOS = true;
    SKIP_MENU = true;
    SKIP_INTRO = true;
+   LOGGING = true;
 
    // Drawing parameters
    SCREEN_RES = m320x240;
@@ -88,6 +89,7 @@ BEGIN
    orchestrator();
 
    let_me_alone();
+   log_formatted("[Footer]", false);
 
 END
 //--------------------------------------------
@@ -102,6 +104,8 @@ END
 FUNCTION init();
 //--------------------------------------------
 BEGIN
+
+   log_formatted("[Header]", false);
 
    set_mode(SCREEN_RES);
    restore_type = SCREEN_RESTORE;
@@ -150,7 +154,9 @@ FUNCTION display_logos();
 //--------------------------------------------
 BEGIN
 
-   IF (!SKIP_LOGOS)
+   IF (SKIP_LOGOS)
+      log("Skipped logos");
+   ELSE
       // TODO: implement logos display
    END
 
@@ -163,7 +169,9 @@ FUNCTION show_menu();
 //--------------------------------------------
 BEGIN
 
-   IF (!SKIP_MENU)
+   IF (SKIP_MENU)
+      log("Skipped menus");
+   ELSE
       // TODO: implement menus
    END
 
@@ -189,7 +197,9 @@ FUNCTION play_intro();
 //--------------------------------------------
 BEGIN
 
-   IF (!SKIP_INTRO)
+   IF (SKIP_INTRO)
+      log("Skipped intro");
+   ELSE
       // TODO: implement intro
    END
 
@@ -201,6 +211,8 @@ END
 FUNCTION play_level(INT level);
 //--------------------------------------------
 BEGIN
+
+   log("Playing level " + itoa(level));
 
    current_level = level;
    load_level_resources(level);
@@ -296,6 +308,7 @@ BEGIN
 
    fpg_level = load_fpg(BASE_PATH + level_info[level].fpg_path);
    wld_level = load_wld(BASE_PATH + level_info[level].wld_path, fpg_level);
+   log("Loaded resources for level " + itoa(level));
 
 END
 //--------------------------------------------
@@ -315,6 +328,48 @@ BEGIN
 
    WHILE (fading)
       FRAME;
+   END
+
+END
+//--------------------------------------------
+
+
+// ----------------------------------------------------------
+// ------------- SYSTEM & DEBUGGING
+// ----------------------------------------------------------
+
+
+//--------------------------------------------
+FUNCTION log(STRING text);
+//--------------------------------------------
+BEGIN
+
+   log_formatted(text, true);
+
+END
+//--------------------------------------------
+
+
+//--------------------------------------------
+FUNCTION log_formatted(STRING text, show_timestamp);
+//--------------------------------------------
+PRIVATE
+
+   STRING line;
+
+BEGIN
+
+   IF (logging)
+      IF (show_timestamp)
+         line = itoa(timer);
+         WHILE (strlen(line) < 8)
+            line = "0" + line;
+         END
+         line = " [" + line + "] " + text;
+      ELSE
+         line = text;
+      END
+      system("echo " + line + " >> bluebird.log");
    END
 
 END
