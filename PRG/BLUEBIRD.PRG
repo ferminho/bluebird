@@ -15,6 +15,7 @@ CONST
    BASE_PATH = "ferminho\bluebird\";
 
    // Dev config
+   DEVELOPER_MODE = true;
    STARTING_LEVEL = 0;
    SKIP_LOGOS = true;
    SKIP_MENU = true;
@@ -237,6 +238,10 @@ BEGIN
    set_fog(level_info[level].fog_distance[0],
            level_info[level].fog_distance[1]);
 
+   IF (DEVELOPER_MODE)
+      write_debug_info();
+   END
+
    fade_and_wait(100, 100, 100, FADE_SPEED);
 
    LOOP
@@ -282,11 +287,6 @@ BEGIN
    grid_cell_height = (sector_height + sector_gap) * G_RES;
    grid_rows = MAX_M8_COORD / grid_cell_height;
    grid_columns = MAX_M8_COORD / grid_cell_width;
-
-   write_int(0,0,0,0,&x);
-   write_int(0,0,8,0,&y);
-   write_int(0,0,16,0,&z);
-   write_int(0,0,24,0,&fps);
 
    px = grid_x0;
    py = grid_y0;
@@ -390,6 +390,31 @@ BEGIN
 
       FRAME;
    END
+
+END
+//--------------------------------------------
+
+
+//--------------------------------------------
+PROCESS write_debug_info();
+//--------------------------------------------
+BEGIN
+
+   write    (0, 0 , 0 , 0, "X");
+   write_int(0, 20, 0 , 0, &id_camera.x);
+   write    (0, 0 , 8 , 0, "Y");
+   write_int(0, 20, 8 , 0, &id_camera.y);
+   write    (0, 0 , 16, 0, "Z");
+   write_int(0, 20, 16, 0, &id_camera.z);
+
+   write    (0, 0 , 32, 0, "FPS");
+   write_int(0, 20, 32, 0, &fps);
+   write    (0, 0 , 40, 0, "TS");
+   write_int(0, 20, 40, 0, &time_speed);
+   write    (0, 0 , 48, 0, "d");
+   write_int(0, 20, 48, 0, &delta);
+   write    (0, 0 , 56, 0, "GT");
+   write_int(0, 20, 56, 0, &global_time);
 
 END
 //--------------------------------------------
