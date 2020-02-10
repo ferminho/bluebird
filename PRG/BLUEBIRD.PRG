@@ -78,10 +78,18 @@ GLOBAL
    id_camera;
    id_player;
 
+   // Game logic timing (transformed)
+   INT delta;
+   INT global_time;
+   INT time_speed = 1000;
+
 LOCAL
 
    // precision coordinates
    INT px, INT py, INT pz;
+
+   // velocity
+   INT vx, vy;
 
 BEGIN
 
@@ -113,6 +121,8 @@ BEGIN
    dump_type = SCREEN_DUMP;
    set_fps(TARGET_FPS, MAX_FRAMESKIP);
    define_region(MAIN_REGION, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+   time_master(); // this should always be running
 
 END
 //--------------------------------------------
@@ -338,6 +348,51 @@ END
 // ----------------------------------------------------------
 // ------------- SYSTEM & DEBUGGING
 // ----------------------------------------------------------
+
+
+//--------------------------------------------
+PROCESS time_master();
+//--------------------------------------------
+PRIVATE
+
+   INT last_timer = 0;
+   INT carry_out = 0;  // remaining decimals from previous frame
+
+BEGIN
+
+   priority = max_int;
+
+   LOOP
+      delta = timer - last_timer;
+      last_timer += delta;
+      // transform delta to G_RES scale (not necessarily 1/100s as in timer[])
+      delta = (delta * G_RES) / 100;
+
+      // transform with speed, keeping carry out for next frame
+      delta = (delta * time_speed) + carry_out;
+      carry_out = delta % G_RES;
+      delta /= G_RES;
+
+      global_time += delta;
+
+      IF (DEVELOPER_MODE)
+         IF (key(_f1))
+            time_speed = (time_speed * 98) / 100;
+         ELSE IF (key(_f2))
+            IF (time_speed < 50)
+               time_speed = 50;
+            ELSE
+               time_speed = (time_speed * 102) / 100;
+               IF (time_speed > 10000) time_speed = 10000; END
+            END
+         END END
+      END
+
+      FRAME;
+   END
+
+END
+//--------------------------------------------
 
 
 //--------------------------------------------
