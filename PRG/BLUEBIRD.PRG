@@ -12,7 +12,8 @@ PROGRAM bluebird;
 //--------------------------------------------
 CONST
 
-   // Start config
+   BASE_PATH = "ferminho\bluebird\";
+
    STARTING_LEVEL = 0;
    SKIP_LOGOS = true;
    SKIP_MENU = true;
@@ -58,13 +59,13 @@ GLOBAL
       INT sector_height;
       INT sector_gap;
    END =
-      "Etherfax - Goliath Sea",   // Name
-      "bluebird\wld\bbst01.wld",  // WLD path
-      "bluebird\fpg\bbst01.fpg",  // FPG path
-      15, 21, 23,                 // Fog color
-      20, 75,                     // Fog distance
-      1580,                       // Camera Z
-      14992, 5992, 8;             // Sector width, height & gap among sectors
+      "Etherfax - Goliath Sea",  // Name
+      "wld\bbst01.wld",          // WLD path
+      "fpg\bbst01.fpg",          // FPG path
+      15, 21, 23,                // Fog color
+      20, 75,                    // Fog distance
+      1580,                      // Camera Z
+      14992, 5992, 8;            // Sector width, height & gap among sectors
 
    // Resources
    fpg_level;  // FPG handle of current level WLD
@@ -293,8 +294,8 @@ FUNCTION load_level_resources(INT level);
 //--------------------------------------------
 BEGIN
 
-   fpg_level = load_fpg(level_info[level].fpg_path);
-   wld_level = load_wld(level_info[level].wld_path, fpg_level);
+   fpg_level = load_fpg(BASE_PATH + level_info[level].fpg_path);
+   wld_level = load_wld(BASE_PATH + level_info[level].wld_path, fpg_level);
 
 END
 //--------------------------------------------
