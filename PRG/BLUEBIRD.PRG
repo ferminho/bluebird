@@ -34,7 +34,10 @@ CONST
    MAIN_REGION = 1;
 
    // Game logic
-   G_RES = 1000; // GLOBAL RESOLUTION / precision to be used throughout all processes
+   G_RES = 1000;        // GLOBAL RESOLUTION / precision to be used throughout all processes
+   BIRD_SLOW_SPEED = 225;
+   BIRD_STD_SPEED = 450;
+   BIRD_HIGH_SPEED = 675;
 
    // Mode8
    MAIN_M8 = 0;
@@ -62,17 +65,21 @@ GLOBAL
       INT sector_width;
       INT sector_height;
       INT sector_gap;
+      WORD sector_x_range[1];
    END =
-      "Etherfax - Goliath Sea",  // Name
-      "wld\bbst01.wld",          // WLD path
-      "fpg\bbst01.fpg",          // FPG path
-      15, 21, 23,                // Fog color
-      20, 75,                    // Fog distance
-      1580,                      // Camera Z
-      14992, 5992, 8;            // Sector width, height & gap among sectors
+         // --- LEVEL 0
+         "Etherfax - Goliath Sea",  // Name
+         "wld\bbst01.wld",          // WLD path
+         "fpg\bbst01.fpg",          // FPG path
+         15, 21, 23,                // Fog color
+         20, 75,                    // Fog distance
+         1600,                      // Camera Z
+         14992, 5992, 8,            // Sector width, height, gap among sectors
+         32, 7712;                  // Sector X range (playable zone)
 
    // Resources
    fpg_level;  // FPG handle of current level WLD
+   fpg_ships;  // FPG handle of ships library
    wld_level;  // WLD handle of current level
 
    // Important processes
@@ -86,10 +93,10 @@ GLOBAL
 
 LOCAL
 
-   // precision coordinates
+   // precision coordinates in G_RES resolution
    INT px, INT py, INT pz;
 
-   // velocity
+   // velocity in units per second
    INT vx, vy;
 
 BEGIN
@@ -262,12 +269,11 @@ PROCESS camera();
 //--------------------------------------------
 PRIVATE
 
-   INT sector_width;
-   INT sector_height;
-   INT sector_gap;
+   INT sector_w, INT sector_h, INT sector_gap, INT sector_x0, INT sector_x1;
 
    INT grid_x0;
    INT grid_y0;
+   INT grid_x1;
    INT grid_cell_width;
    INT grid_cell_height;
    INT grid_rows;
@@ -277,14 +283,19 @@ BEGIN
 
    ctype = c_m8;
 
-   sector_width = level_info[current_level].sector_width;
-   sector_height = level_info[current_level].sector_height;
+   // cache values in shorter variables
+   sector_w = level_info[current_level].sector_width;
+   sector_h = level_info[current_level].sector_height;
    sector_gap = level_info[current_level].sector_gap;
+   sector_x0 = level_info[current_level].sector_x_range[0];
+   sector_x1 = level_info[current_level].sector_x_range[1];
 
-   grid_x0 = 32 * G_RES;
-   grid_y0 = (sector_height * G_RES) / 2;
-   grid_cell_width = (sector_width + sector_gap) * G_RES;
-   grid_cell_height = (sector_height + sector_gap) * G_RES;
+   // calculate the map "grid" coords and dimensions
+   grid_x0 = sector_x0 * G_RES;
+   grid_y0 = (sector_h * G_RES) / 2;
+   grid_x1 = sector_x1 * G_RES;
+   grid_cell_width = (sector_w + sector_gap) * G_RES;
+   grid_cell_height = (sector_h + sector_gap) * G_RES;
    grid_rows = MAX_M8_COORD / grid_cell_height;
    grid_columns = MAX_M8_COORD / grid_cell_width;
 
@@ -295,7 +306,15 @@ BEGIN
    radius = 8;
    m8.height = 0;
 
+   vx = BIRD_STD_SPEED;
+
    LOOP
+
+      px += vx * delta;
+
+      IF (px >= grid_x1)
+         px -= (grid_x1 - grid_x0);
+      END
 
       x = px / G_RES;
       y = py / G_RES;
@@ -317,6 +336,7 @@ FUNCTION load_level_resources(INT level);
 //--------------------------------------------
 BEGIN
 
+   load_pal(BASE_PATH + level_info[level].fpg_path);
    fpg_level = load_fpg(BASE_PATH + level_info[level].fpg_path);
    wld_level = load_wld(BASE_PATH + level_info[level].wld_path, fpg_level);
    log("Loaded resources for level " + itoa(level));
