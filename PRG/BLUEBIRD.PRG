@@ -367,9 +367,9 @@ BEGIN
    px = grid_x0;
    py = grid_y0;
    pz = level_info[current_level].camera_z * G_RES;
-   height = 8;
    radius = 8;
-   m8.height = 0;
+   height = 64;
+   m8.height = 64;
 
    vx = BIRD_STD_SPEED;
 
@@ -399,13 +399,22 @@ BEGIN
    ctype = c_m8;
    file = fpg_ships;
    base_graph = 2;
+   py = id_camera.py;
+   height = 0;
+   radius = 32;
+   pz = level_info[current_level].camera_z * G_RES;
 
    LOOP
 
-      x = id_camera.x + BIRD_STD_DISTANCE;
-      y = id_camera.y;
+      px = id_camera.px + (BIRD_STD_DISTANCE * G_RES);
       rangle += 180 * delta;
 
+      py += input[I_PLAYER].x * delta;
+      pz += input[I_PLAYER].y * delta;
+
+      x = px / G_RES;
+      y = py / G_RES;
+      z = pz / G_RES;
       graph = get_entity_angle_graph(base_graph, rangle);
       FRAME;
    END
@@ -550,6 +559,14 @@ BEGIN
    write_int(0, 20, 8 , 0, &id_camera.y);
    write    (0, 0 , 16, 0, "Z");
    write_int(0, 20, 16, 0, &id_camera.z);
+
+   write    (0, 270, 0 , 0, "X");
+   write_int(0, 290, 0 , 0, &id_player.x);
+   write    (0, 270, 8 , 0, "Y");
+   write_int(0, 290, 8 , 0, &id_player.y);
+   write    (0, 270, 16, 0, "Z");
+   write_int(0, 290, 16, 0, &id_player.z);
+
 
    write    (0, 0 , 32, 0, "FPS");
    write_int(0, 20, 32, 0, &fps);
