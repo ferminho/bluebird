@@ -58,7 +58,8 @@ CONST
    FADE_SPEED = 10; // standard fade speed for transitions
 
    // Dynamic graph definitions
-   SHIPS_ANGLES = 16;
+   ENTITY_ANGLES = 16;
+   ENTITY_ANGLE_STEP = 360000 / ENTITY_ANGLES;
    PLAYER_SHIP_MAIN = 1;
 
 
@@ -110,6 +111,8 @@ LOCAL
 
    // roll angle (remember usual angle is yaw in m8)
    INT rangle;
+   // graph for entity angle 0 (first angle step)
+   base_graph;
 
    // velocity in units per second
    INT vx, vy;
@@ -250,7 +253,7 @@ BEGIN
 
    current_level = level;
    load_level_resources(level);
-   preprocess_angles(fpg_ships, 1, 30);
+   preprocess_angles(fpg_ships, 1, 20);
 
    id_camera = camera();
    id_player = bird();
@@ -351,13 +354,15 @@ BEGIN
 
    ctype = c_m8;
    file = fpg_ships;
-   graph = 3;
+   base_graph = 2;
 
    LOOP
 
       x = id_camera.x + BIRD_STD_DISTANCE;
       y = id_camera.y;
+      rangle += 180 * delta;
 
+      graph = get_entity_angle_graph(base_graph, rangle);
       FRAME;
    END
 
@@ -391,18 +396,15 @@ FUNCTION preprocess_angles(file, graph, INT size);
 PRIVATE
 
    INT i;
-   INT angle_step;
    INT graph_width, INT graph_height;
 
 BEGIN
 
-   angle_step = 360000 / SHIPS_ANGLES;
-
-   FOR (i = 1; i <= SHIPS_ANGLES; i+= 1)
+   FOR (i = 1; i <= ENTITY_ANGLES; i+= 1)
       graph_width = graphic_info(file, graph + i, g_wide);
       graph_height = graphic_info(file, graph + i, g_height);
 
-      angle = i * angle_step;
+      angle = i * ENTITY_ANGLE_STEP;
       map_xput(file, graph + i, graph, graph_width / 2, graph_height / 2, angle, size, 0);
    END
 
@@ -411,7 +413,7 @@ END
 
 
 // ----------------------------------------------------------
-// ------------- VISUAL EFFECTS
+// ------------- VISUAL EFFECTS & GFX FUNCTIONS
 // ----------------------------------------------------------
 
 
@@ -425,6 +427,19 @@ BEGIN
    WHILE (fading)
       FRAME;
    END
+
+END
+//--------------------------------------------
+
+
+//--------------------------------------------
+FUNCTION get_entity_angle_graph(base_graph, INT angle);
+//--------------------------------------------
+BEGIN
+
+   angle = angle MOD 360000;
+   IF (angle < 0) angle+= 360000; END
+   RETURN(base_graph + (angle / ENTITY_ANGLE_STEP));
 
 END
 //--------------------------------------------
