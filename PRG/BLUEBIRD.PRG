@@ -38,6 +38,13 @@ CONST
    BIRD_SLOW_SPEED = 225;
    BIRD_STD_SPEED = 450;
    BIRD_HIGH_SPEED = 675;
+   BIRD_CLOSE_DISTANCE = 64;
+   BIRD_STD_DISTANCE = 128;
+   BIRD_LONG_DISTANCE = 192;
+
+   // Process priority
+   PRIORITY_TIME_MASTER = max_int;
+   PRIORITY_CAMERA = max_int - 1;
 
    // Mode8
    MAIN_M8 = 0;
@@ -49,6 +56,11 @@ CONST
 
    // Effects
    FADE_SPEED = 10; // standard fade speed for transitions
+
+   // Dynamic graph definitions
+   SHIPS_ANGLES = 16;
+   PLAYER_SHIP_MAIN = 1;
+
 
 GLOBAL
 
@@ -77,7 +89,7 @@ GLOBAL
          14992, 5992, 8,            // Sector width, height, gap among sectors
          32, 7712;                  // Sector X range (playable zone)
 
-   // Resources
+   // Resources: file res
    fpg_level;  // FPG handle of current level WLD
    fpg_ships;  // FPG handle of ships library
    wld_level;  // WLD handle of current level
@@ -95,6 +107,9 @@ LOCAL
 
    // precision coordinates in G_RES resolution
    INT px, INT py, INT pz;
+
+   // roll angle (remember usual angle is yaw in m8)
+   INT rangle;
 
    // velocity in units per second
    INT vx, vy;
@@ -235,8 +250,10 @@ BEGIN
 
    current_level = level;
    load_level_resources(level);
+   preprocess_angles(fpg_ships, 1, 30);
 
    id_camera = camera();
+   id_player = bird();
 
    start_mode8(id_camera, MAIN_M8, MAIN_REGION);
    set_env_color(level_info[level].fog_color[0],
@@ -282,6 +299,7 @@ PRIVATE
 BEGIN
 
    ctype = c_m8;
+   priority = PRIORITY_CAMERA;
 
    // cache values in shorter variables
    sector_w = level_info[current_level].sector_width;
@@ -326,6 +344,27 @@ END
 //--------------------------------------------
 
 
+//--------------------------------------------
+PROCESS bird();
+//--------------------------------------------
+BEGIN
+
+   ctype = c_m8;
+   file = fpg_ships;
+   graph = 3;
+
+   LOOP
+
+      x = id_camera.x + BIRD_STD_DISTANCE;
+      y = id_camera.y;
+
+      FRAME;
+   END
+
+END
+//--------------------------------------------
+
+
 // ----------------------------------------------------------
 // ------------- RESOURCE MANAGEMENT
 // ----------------------------------------------------------
@@ -339,7 +378,33 @@ BEGIN
    load_pal(BASE_PATH + level_info[level].fpg_path);
    fpg_level = load_fpg(BASE_PATH + level_info[level].fpg_path);
    wld_level = load_wld(BASE_PATH + level_info[level].wld_path, fpg_level);
+   fpg_ships = load_fpg(BASE_PATH + "fpg\ships.fpg");
    log("Loaded resources for level " + itoa(level));
+
+END
+//--------------------------------------------
+
+
+//--------------------------------------------
+FUNCTION preprocess_angles(file, graph, INT size);
+//--------------------------------------------
+PRIVATE
+
+   INT i;
+   INT angle_step;
+   INT graph_width, INT graph_height;
+
+BEGIN
+
+   angle_step = 360000 / SHIPS_ANGLES;
+
+   FOR (i = 1; i <= SHIPS_ANGLES; i+= 1)
+      graph_width = graphic_info(file, graph + i, g_wide);
+      graph_height = graphic_info(file, graph + i, g_height);
+
+      angle = i * angle_step;
+      map_xput(file, graph + i, graph, graph_width / 2, graph_height / 2, angle, size, 0);
+   END
 
 END
 //--------------------------------------------
@@ -380,7 +445,7 @@ PRIVATE
 
 BEGIN
 
-   priority = max_int;
+   priority = PRIORITY_TIME_MASTER;
 
    LOOP
       delta = timer - last_timer;
