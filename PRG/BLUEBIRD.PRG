@@ -44,7 +44,8 @@ CONST
 
    // Process priority
    PRIORITY_TIME_MASTER = max_int;
-   PRIORITY_CAMERA = max_int - 1;
+   PRIORITY_PLAYER_INPUT = max_int - 1;
+   PRIORITY_CAMERA = max_int - 2;
 
    // Mode8
    MAIN_M8 = 0;
@@ -62,6 +63,8 @@ CONST
    ENTITY_ANGLE_STEP = 360000 / ENTITY_ANGLES;
    PLAYER_SHIP_MAIN = 1;
 
+   // Input
+   I_PLAYER = 0;
 
 GLOBAL
 
@@ -104,9 +107,19 @@ GLOBAL
    INT global_time;
    INT time_speed = 1000;
 
+   // Input
+   STRUCT input[0]
+      INT x;         // -100 to 100
+      INT y;         // -100 to 100
+      INT burn_x;    // -1 to 1
+      INT burn_y;    // -1 to 1
+      INT throttle;  // -1 to 1
+      INT roll;      // -1 (CCW) to 1 (CW)
+   END
+
 LOCAL
 
-   // precision coordinates in G_RES resolution
+   // precision coordinates in G_RES resolution. This pz is meant for m8, not z-depth
    INT px, INT py, INT pz;
 
    // roll angle (remember usual angle is yaw in m8)
@@ -149,6 +162,7 @@ BEGIN
    define_region(MAIN_REGION, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
    time_master(); // this should always be running
+   player_input(); // same goes for player input
 
 END
 //--------------------------------------------
@@ -272,6 +286,36 @@ BEGIN
    fade_and_wait(100, 100, 100, FADE_SPEED);
 
    LOOP
+      FRAME;
+   END
+
+END
+//--------------------------------------------
+
+
+// ----------------------------------------------------------
+// ------------- INPUT
+// ----------------------------------------------------------
+
+
+//--------------------------------------------
+PROCESS player_input();
+//--------------------------------------------
+BEGIN
+
+   LOOP
+      input[I_PLAYER].x            = 0;
+      input[I_PLAYER].y            = 0;
+      input[I_PLAYER].burn_x       = 0;
+      input[I_PLAYER].burn_y       = 0;
+      input[I_PLAYER].throttle     = 0;
+      input[I_PLAYER].roll         = 0;
+
+      IF (key(_a)) input[I_PLAYER].x = -100; END
+      IF (key(_d)) input[I_PLAYER].x = 100; END
+      IF (key(_w)) input[I_PLAYER].y = 100; END
+      IF (key(_s)) input[I_PLAYER].y = -100; END
+
       FRAME;
    END
 
