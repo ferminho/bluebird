@@ -59,7 +59,7 @@ CONST
    FADE_SPEED = 10; // standard fade speed for transitions
 
    // Dynamic graph definitions
-   ENTITY_ANGLES = 16;
+   ENTITY_ANGLES = 4;
    ENTITY_ANGLE_STEP = 360000 / ENTITY_ANGLES;
    PLAYER_SHIP_MAIN = 1;
 
@@ -90,7 +90,7 @@ GLOBAL
          "wld\bbst01.wld",          // WLD path
          "fpg\bbst01.fpg",          // FPG path
          15, 21, 23,                // Fog color
-         20, 75,                    // Fog distance
+         10, 80,                    // Fog distance
          1600,                      // Camera Z
          14992, 5992, 8,            // Sector width, height, gap among sectors
          32, 7712;                  // Sector X range (playable zone)
@@ -276,7 +276,8 @@ BEGIN
 
    current_level = level;
    load_level_resources(level);
-   preprocess_angles(fpg_ships, 1, 20);
+   preprocess_angles(fpg_ships, 1, 2, 20);
+   post_process();
 
    id_camera = camera();
    id_player = bird();
@@ -377,13 +378,20 @@ BEGIN
    px = grid_x0;
    py = grid_y0;
    pz = level_info[current_level].camera_z * G_RES;
-   radius = 8;
-   height = 64;
-   m8.height = 64;
+   radius = 0;
+   height = 0;
+   m8.height = 0;
 
    vx = BIRD_STD_SPEED;
+   size=500;
 
    WHILE (game_status == binded_game_status)
+      IF (DEVELOPER_MODE)
+         IF (key(_j)) py -= 50 * delta; END
+         IF (key(_l)) py += 50 * delta; END
+         IF (key(_i)) pz += 50 * delta; END
+         IF (key(_k)) pz -= 50 * delta; END
+      END
 
       px += vx * delta;
 
@@ -411,14 +419,13 @@ BEGIN
    file = fpg_ships;
    base_graph = 2;
    py = id_camera.py;
+   radius = 0;
    height = 0;
-   radius = 32;
    pz = level_info[current_level].camera_z * G_RES;
 
    WHILE (game_status == binded_game_status)
 
       px = id_camera.px + (BIRD_STD_DISTANCE * G_RES);
-      rangle += 180 * delta;
 
       py += input[I_PLAYER].x * delta;
       pz += input[I_PLAYER].y * delta;
@@ -427,6 +434,7 @@ BEGIN
       y = py / G_RES;
       z = pz / G_RES;
       graph = get_entity_angle_graph(base_graph, rangle);
+
       FRAME;
    END
 
@@ -455,7 +463,7 @@ END
 
 
 //--------------------------------------------
-FUNCTION preprocess_angles(file, graph, INT size);
+FUNCTION preprocess_angles(file, graph, start_graph, INT size);
 //--------------------------------------------
 PRIVATE
 
@@ -464,12 +472,12 @@ PRIVATE
 
 BEGIN
 
-   FOR (i = 1; i <= ENTITY_ANGLES; i+= 1)
-      graph_width = graphic_info(file, graph + i, g_wide);
-      graph_height = graphic_info(file, graph + i, g_height);
+   FOR (i = 0; i < ENTITY_ANGLES; i+= 1)
+      graph_width = graphic_info(file, start_graph + i, g_wide);
+      graph_height = graphic_info(file, start_graph + i, g_height);
 
       angle = i * ENTITY_ANGLE_STEP;
-      map_xput(file, graph + i, graph, graph_width / 2, graph_height / 2, angle, size, 0);
+      map_xput(file, start_graph + i, graph, graph_width / 2, graph_height / 2, angle, size, 0);
    END
 
 END
@@ -479,6 +487,37 @@ END
 // ----------------------------------------------------------
 // ------------- VISUAL EFFECTS & GFX FUNCTIONS
 // ----------------------------------------------------------
+
+
+//--------------------------------------------
+PROCESS post_process();
+//--------------------------------------------
+PRIVATE
+
+   INT drawing1, INT drawing2;
+
+BEGIN
+
+   binded_game_status = game_status;
+   priority = min_int;
+   z = min_int;
+
+   IF (DEVELOPER_MODE)
+      drawing1 = draw(1, 222, 7, 0, 158, 120, 162, 120);
+      drawing2 = draw(1, 222, 7, 0, 160, 118, 160, 122);
+   END
+
+   WHILE (game_status == binded_game_status)
+      FRAME;
+   END
+
+   IF (DEVELOPER_MODE)
+      delete_draw(drawing1);
+      delete_draw(drawing2);
+   END
+
+END
+//--------------------------------------------
 
 
 //--------------------------------------------
