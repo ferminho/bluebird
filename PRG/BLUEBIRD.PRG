@@ -68,6 +68,8 @@ CONST
 
 GLOBAL
 
+   INT game_status; // current status, usually id of game status handler
+
    // Levels
    INT current_level;
 
@@ -118,6 +120,9 @@ GLOBAL
    END
 
 LOCAL
+
+   // game status process is binded to; it will be destroyed if game status changes
+   INT binded_game_status;
 
    // precision coordinates in G_RES resolution. This pz is meant for m8, not z-depth
    INT px, INT py, INT pz;
@@ -205,6 +210,7 @@ FUNCTION display_logos();
 //--------------------------------------------
 BEGIN
 
+   game_status = id;
    IF (SKIP_LOGOS)
       log("Skipped logos");
    ELSE
@@ -220,6 +226,7 @@ FUNCTION show_menu();
 //--------------------------------------------
 BEGIN
 
+   game_status = id;
    IF (SKIP_MENU)
       log("Skipped menus");
    ELSE
@@ -248,6 +255,7 @@ FUNCTION play_intro();
 //--------------------------------------------
 BEGIN
 
+   game_status = id;
    IF (SKIP_INTRO)
       log("Skipped intro");
    ELSE
@@ -263,6 +271,7 @@ FUNCTION play_level(INT level);
 //--------------------------------------------
 BEGIN
 
+   game_status = id;
    log("Playing level " + itoa(level));
 
    current_level = level;
@@ -345,6 +354,7 @@ PRIVATE
 
 BEGIN
 
+   binded_game_status = game_status;
    ctype = c_m8;
    priority = PRIORITY_CAMERA;
 
@@ -373,7 +383,7 @@ BEGIN
 
    vx = BIRD_STD_SPEED;
 
-   LOOP
+   WHILE (game_status == binded_game_status)
 
       px += vx * delta;
 
@@ -396,6 +406,7 @@ PROCESS bird();
 //--------------------------------------------
 BEGIN
 
+   binded_game_status = game_status;
    ctype = c_m8;
    file = fpg_ships;
    base_graph = 2;
@@ -404,7 +415,7 @@ BEGIN
    radius = 32;
    pz = level_info[current_level].camera_z * G_RES;
 
-   LOOP
+   WHILE (game_status == binded_game_status)
 
       px = id_camera.px + (BIRD_STD_DISTANCE * G_RES);
       rangle += 180 * delta;
