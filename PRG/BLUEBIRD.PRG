@@ -95,7 +95,9 @@ GLOBAL
       INT area_width;
       INT area_height;
       INT area_gap;
-      WORD area_x_range[1];
+      WORD area_x_abs_range[1];
+      INT area_y_rel_range[1];
+      WORD area_z_abs_range[1];
    END =
          // --- LEVEL 0
          "Etherfax - Goliath Sea",  // Name
@@ -105,7 +107,15 @@ GLOBAL
          10, 80,                    // Fog distance
          1600,                      // Camera Z
          14992, 5992, 8,            // Area width, height, gap among areas
-         32, 7712;                  // Area X range (playable zone)
+         32, 7712,                  // Area X absolute range
+         -250, 250,                 // Area Y relative range
+         1500, 1700;                // Area Z absolute range
+
+   STRUCT level_rail // info about the current "rail" the camera is following
+   // All below is realtime info affected by G_RES!
+      INT teleport_x, INT teleport_y; // usually 0, if not, it contains the teleport offset
+      INT x, INT y, INT z; // updated every frame with base-x,y,z not including camera offset
+   END
 
    // Resources: file res
    fpg_level;  // FPG handle of current level WLD
@@ -380,8 +390,8 @@ BEGIN
    area_w = level_info[current_level].area_width;
    area_h = level_info[current_level].area_height;
    area_gap = level_info[current_level].area_gap;
-   area_x0 = level_info[current_level].area_x_range[0];
-   area_x1 = level_info[current_level].area_x_range[1];
+   area_x0 = level_info[current_level].area_x_abs_range[0];
+   area_x1 = level_info[current_level].area_x_abs_range[1];
 
    // calculate the map "grid" coords and dimensions
    grid_x0 = area_x0 * G_RES;
@@ -395,6 +405,8 @@ BEGIN
    px = grid_x0;
    py = grid_y0;
    pz = level_info[current_level].camera_z * G_RES;
+   level_rail.y = py;
+   level_rail.z = pz;
    radius = 0;
    height = 0;
    m8.height = 0;
@@ -402,18 +414,26 @@ BEGIN
    vx = BIRD_STD_SPEED;
 
    WHILE (game_status == binded_game_status)
-      IF (DEVELOPER_MODE)
-         IF (key(_j)) py -= 50 * delta; END
-         IF (key(_l)) py += 50 * delta; END
-         IF (key(_i)) pz += 50 * delta; END
-         IF (key(_k)) pz -= 50 * delta; END
-      END
-
       px += vx * delta;
 
       IF (px >= grid_x1)
-         px -= (grid_x1 - grid_x0);
+         // CHANGE AREA
+         level_rail.teleport_x = -(grid_x1 - grid_x0);
+         level_rail.teleport_y = 0;
+
+         px += level_rail.teleport_x;
+         py += level_rail.teleport_y;
+
+         level_rail.y += level_rail.teleport_y;
+      ELSE
+         level_rail.teleport_x = 0;
+         level_rail.teleport_y = 0;
       END
+
+      IF (action == ACTION_SPECTATE_PLAYER)
+      END
+
+      level_rail.x = px;
 
       x = px / G_RES;
       y = py / G_RES;
