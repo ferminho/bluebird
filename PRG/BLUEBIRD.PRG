@@ -11,7 +11,8 @@
 // - Graph height impacts how m8 positions the graphic. Graph center does NOT
 // - For a graph to be centered on screen it must be located at same Z as camera, but,
 //    considering 0 height, m8_heights, etc, graph must be at camera.Z - (graph_height / 2) - 7.5
-//    I haven't been able to fully understand why that 7.5.
+//    I haven't been able to fully understand why that 7.5. Must be related to perspective I guess but
+//    it's not making 100% sense.
 
 
 //--------------------------------------------
@@ -380,6 +381,8 @@ PRIVATE
    INT grid_rows;
    INT grid_columns;
 
+   INT target_y, INT target_z;
+
 BEGIN
 
    binded_game_status = game_status;
@@ -431,6 +434,8 @@ BEGIN
       END
 
       IF (action == ACTION_SPECTATE_PLAYER)
+         py = level_rail.py + ((id_player.py - level_rail.py) / 2);
+         pz = level_rail.pz + ((id_player.pz - level_rail.pz) / 2);
       END
 
       level_rail.px = px;
@@ -450,6 +455,7 @@ PROCESS bird();
 //--------------------------------------------
 PRIVATE
 
+   INT graph_width, INT graph_height;
    INT rel_min_y, INT rel_max_y;
    INT abs_min_y, INT abs_max_y;
    INT abs_min_z, INT abs_max_z;
@@ -462,6 +468,9 @@ BEGIN
    file = fpg_ships;
    base_graph = 2;
 
+   graph_width = graphic_info(file, base_graph, g_wide);
+   graph_height = graphic_info(file, base_graph, g_height);
+
    rel_min_y = level_info[current_level].area_y_rel_range[0] * G_RES;
    rel_max_y = level_info[current_level].area_y_rel_range[1] * G_RES;
    abs_min_z = level_info[current_level].area_z_abs_range[0] * G_RES;
@@ -469,13 +478,13 @@ BEGIN
 
    py = level_rail.py;
    pz = level_rail.pz;
-   radius = 0;
-   height = 0;
+   radius = graph_width;
+   height = graph_height;
 
    WHILE (game_status == binded_game_status)
 
-      abs_min_y = id_camera.py + rel_min_y;
-      abs_max_y = id_camera.py + rel_max_y;
+      abs_min_y = level_rail.py + rel_min_y;
+      abs_max_y = level_rail.py + rel_max_y;
 
       px = level_rail.px + (BIRD_STD_DISTANCE * G_RES);
 
