@@ -7,6 +7,13 @@
 // -------------------------------------------
 
 
+// Some notes about research I did:
+// - Graph height impacts how m8 positions the graphic. Graph center does NOT
+// - For a graph to be centered on screen it must be located at same Z as camera, but,
+//    considering 0 height, m8_heights, etc, graph must be at camera.Z - (graph_height / 2) - 7.5
+//    I haven't been able to fully understand why that 7.5.
+
+
 //--------------------------------------------
 PROGRAM bluebird;
 //--------------------------------------------
@@ -50,6 +57,7 @@ CONST
    // Mode8
    MAIN_M8 = 0;
    MAX_M8_COORD = 30208 * G_RES;
+   M8_Z_OFFSET = 7;
 
    // Menu navigation
    MENU_QUIT = 0;
