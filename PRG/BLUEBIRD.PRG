@@ -88,10 +88,10 @@ GLOBAL
       BYTE fog_color[2];
       BYTE fog_distance[1];
       INT camera_z;
-      INT sector_width;
-      INT sector_height;
-      INT sector_gap;
-      WORD sector_x_range[1];
+      INT area_width;
+      INT area_height;
+      INT area_gap;
+      WORD area_x_range[1];
    END =
          // --- LEVEL 0
          "Etherfax - Goliath Sea",  // Name
@@ -100,8 +100,8 @@ GLOBAL
          15, 21, 23,                // Fog color
          10, 80,                    // Fog distance
          1600,                      // Camera Z
-         14992, 5992, 8,            // Sector width, height, gap among sectors
-         32, 7712;                  // Sector X range (playable zone)
+         14992, 5992, 8,            // Area width, height, gap among areas
+         32, 7712;                  // Area X range (playable zone)
 
    // Resources: file res
    fpg_level;  // FPG handle of current level WLD
@@ -351,7 +351,7 @@ PROCESS camera();
 //--------------------------------------------
 PRIVATE
 
-   INT sector_w, INT sector_h, INT sector_gap, INT sector_x0, INT sector_x1;
+   INT area_w, INT area_h, INT area_gap, INT area_x0, INT area_x1;
 
    INT grid_x0;
    INT grid_y0;
@@ -368,18 +368,18 @@ BEGIN
    priority = PRIORITY_CAMERA;
 
    // cache values in shorter variables
-   sector_w = level_info[current_level].sector_width;
-   sector_h = level_info[current_level].sector_height;
-   sector_gap = level_info[current_level].sector_gap;
-   sector_x0 = level_info[current_level].sector_x_range[0];
-   sector_x1 = level_info[current_level].sector_x_range[1];
+   area_w = level_info[current_level].area_width;
+   area_h = level_info[current_level].area_height;
+   area_gap = level_info[current_level].area_gap;
+   area_x0 = level_info[current_level].area_x_range[0];
+   area_x1 = level_info[current_level].area_x_range[1];
 
    // calculate the map "grid" coords and dimensions
-   grid_x0 = sector_x0 * G_RES;
-   grid_y0 = (sector_h * G_RES) / 2;
-   grid_x1 = sector_x1 * G_RES;
-   grid_cell_width = (sector_w + sector_gap) * G_RES;
-   grid_cell_height = (sector_h + sector_gap) * G_RES;
+   grid_x0 = area_x0 * G_RES;
+   grid_y0 = (area_h * G_RES) / 2;
+   grid_x1 = area_x1 * G_RES;
+   grid_cell_width = (area_w + area_gap) * G_RES;
+   grid_cell_height = (area_h + area_gap) * G_RES;
    grid_rows = MAX_M8_COORD / grid_cell_height;
    grid_columns = MAX_M8_COORD / grid_cell_width;
 
@@ -391,7 +391,6 @@ BEGIN
    m8.height = 0;
 
    vx = BIRD_STD_SPEED;
-   size=500;
 
    WHILE (game_status == binded_game_status)
       IF (DEVELOPER_MODE)
