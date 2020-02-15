@@ -143,19 +143,19 @@ GLOBAL
 
 LOCAL
 
-   // game status process is binded to; it will be destroyed if game status changes
+   // Game status process is binded to; it will be destroyed if game status changes
    INT binded_game_status;
 
-   // precision coordinates in G_RES resolution. This pz is meant for m8, not z-depth
+   // Precision coordinates in G_RES resolution. This pz is meant for m8, not z-depth
    INT px, INT py, INT pz;
 
-   // roll angle (remember usual angle is yaw in m8)
+   // Roll angle (remember usual angle is yaw in m8)
    INT rangle;
-   // graph for entity angle 0 (first angle step)
+   // Graph for entity angle 0 (first angle step)
    base_graph;
 
-   // velocity in units per second
-   INT vx, vy;
+   // Velocity in units per second
+   INT vx, INT vy, INT vz;
 
    // Action system
    action;
