@@ -74,6 +74,10 @@ CONST
    // Input
    I_PLAYER = 0;
 
+   // Action system
+   ACTION_NONE = 0;
+   ACTION_SPECTATE_PLAYER = 1;
+
 GLOBAL
 
    INT game_status; // current status, usually id of game status handler
@@ -142,6 +146,9 @@ LOCAL
 
    // velocity in units per second
    INT vx, vy;
+
+   // Action system
+   action;
 
 BEGIN
 
@@ -302,6 +309,8 @@ BEGIN
    END
 
    fade_and_wait(100, 100, 100, FADE_SPEED);
+
+   id_camera.action = ACTION_SPECTATE_PLAYER;
 
    LOOP
       FRAME;
