@@ -112,9 +112,9 @@ GLOBAL
          1500, 1700;                // Area Z absolute range
 
    STRUCT level_rail // info about the current "rail" the camera is following
-   // All below is realtime info affected by G_RES!
-      INT teleport_x, INT teleport_y; // usually 0, if not, it contains the teleport offset
-      INT x, INT y, INT z; // updated every frame with base-x,y,z not including camera offset
+      // All below is realtime info affected by G_RES!
+      INT teleport_pxd, INT teleport_pyd; // contains the teleport offset/delta during teleport frame
+      INT px, INT py, INT pz; // updated every frame with base-px,py,pz not including camera offset
    END
 
    // Resources: file res
@@ -405,8 +405,8 @@ BEGIN
    px = grid_x0;
    py = grid_y0;
    pz = level_info[current_level].camera_z * G_RES;
-   level_rail.y = py;
-   level_rail.z = pz;
+   level_rail.py = py;
+   level_rail.pz = pz;
    radius = 0;
    height = 0;
    m8.height = 0;
@@ -418,22 +418,22 @@ BEGIN
 
       IF (px >= grid_x1)
          // CHANGE AREA
-         level_rail.teleport_x = -(grid_x1 - grid_x0);
-         level_rail.teleport_y = 0;
+         level_rail.teleport_pxd = -(grid_x1 - grid_x0);
+         level_rail.teleport_pyd = 0;
 
-         px += level_rail.teleport_x;
-         py += level_rail.teleport_y;
+         px += level_rail.teleport_pxd;
+         py += level_rail.teleport_pyd;
 
-         level_rail.y += level_rail.teleport_y;
+         level_rail.py += level_rail.teleport_pyd;
       ELSE
-         level_rail.teleport_x = 0;
-         level_rail.teleport_y = 0;
+         level_rail.teleport_pxd = 0;
+         level_rail.teleport_pyd = 0;
       END
 
       IF (action == ACTION_SPECTATE_PLAYER)
       END
 
-      level_rail.x = px;
+      level_rail.px = px;
 
       x = px / G_RES;
       y = py / G_RES;
@@ -448,23 +448,43 @@ END
 //--------------------------------------------
 PROCESS bird();
 //--------------------------------------------
+PRIVATE
+
+   INT rel_min_y, INT rel_max_y;
+   INT abs_min_y, INT abs_max_y;
+   INT abs_min_z, INT abs_max_z;
+
 BEGIN
 
    binded_game_status = game_status;
+
    ctype = c_m8;
    file = fpg_ships;
    base_graph = 2;
-   py = id_camera.py;
+
+   rel_min_y = level_info[current_level].area_y_rel_range[0] * G_RES;
+   rel_max_y = level_info[current_level].area_y_rel_range[1] * G_RES;
+   abs_min_z = level_info[current_level].area_z_abs_range[0] * G_RES;
+   abs_max_z = level_info[current_level].area_z_abs_range[1] * G_RES;
+
+   py = level_rail.py;
+   pz = level_rail.pz;
    radius = 0;
    height = 0;
-   pz = level_info[current_level].camera_z * G_RES;
 
    WHILE (game_status == binded_game_status)
 
-      px = id_camera.px + (BIRD_STD_DISTANCE * G_RES);
+      abs_min_y = id_camera.py + rel_min_y;
+      abs_max_y = id_camera.py + rel_max_y;
+
+      px = level_rail.px + (BIRD_STD_DISTANCE * G_RES);
 
       py += input[I_PLAYER].x * delta;
+      IF (py < abs_min_y) py = abs_min_y; END
+      IF (py > abs_max_y) py = abs_max_y; END
       pz += input[I_PLAYER].y * delta;
+      IF (pz < abs_min_z) pz = abs_min_z; END
+      IF (pz > abs_max_z) pz = abs_max_z; END
 
       x = px / G_RES;
       y = py / G_RES;
