@@ -51,9 +51,10 @@ CONST
    BIRD_LONG_DISTANCE = 192;
 
    // Process priority
-   PRIORITY_TIME_MASTER = max_int;
-   PRIORITY_PLAYER_INPUT = max_int - 1;
-   PRIORITY_CAMERA = max_int - 2;
+   PRIORITY_TIME_MASTER =     max_int;
+   PRIORITY_PLAYER_INPUT =    100000;
+   PRIORITY_RAIL_OPERATOR =   90000;
+   PRIORITY_CAMERA =          -100000;
 
    // Mode8
    MAIN_M8 = 0;
@@ -77,7 +78,10 @@ CONST
 
    // Action system
    ACTION_NONE = 0;
+   // Camera actions
    ACTION_SPECTATE_PLAYER = 1;
+   // Rail actions
+   ACTION_ACTIVATE_RAIL = 2;
 
 GLOBAL
 
@@ -124,6 +128,7 @@ GLOBAL
    wld_level;  // WLD handle of current level
 
    // Important processes
+   id_rail_operator;
    id_camera;
    id_player;
 
@@ -305,6 +310,7 @@ BEGIN
    preprocess_angles(fpg_ships, 1, 2, 20);
    post_process();
 
+   id_rail_operator = rail_operator();
    id_camera = camera();
    id_player = bird();
 
@@ -321,6 +327,7 @@ BEGIN
 
    fade_and_wait(100, 100, 100, FADE_SPEED);
 
+   id_rail_operator.action = ACTION_ACTIVATE_RAIL;
    id_camera.action = ACTION_SPECTATE_PLAYER;
 
    LOOP
@@ -367,7 +374,7 @@ END
 
 
 //--------------------------------------------
-PROCESS camera();
+PROCESS rail_operator();
 //--------------------------------------------
 PRIVATE
 
@@ -381,13 +388,10 @@ PRIVATE
    INT grid_rows;
    INT grid_columns;
 
-   INT target_y, INT target_z;
-
 BEGIN
 
    binded_game_status = game_status;
-   ctype = c_m8;
-   priority = PRIORITY_CAMERA;
+   priority = PRIORITY_RAIL_OPERATOR;
 
    // cache values in shorter variables
    area_w = level_info[current_level].area_width;
@@ -408,37 +412,68 @@ BEGIN
    px = grid_x0;
    py = grid_y0;
    pz = level_info[current_level].camera_z * G_RES;
+
+   level_rail.px = px;
    level_rail.py = py;
    level_rail.pz = pz;
-   radius = 0;
-   height = 0;
-   m8.height = 0;
 
    vx = BIRD_STD_SPEED;
 
    WHILE (game_status == binded_game_status)
-      px += vx * delta;
 
-      IF (px >= grid_x1)
-         // CHANGE AREA
-         level_rail.teleport_pxd = -(grid_x1 - grid_x0);
-         level_rail.teleport_pyd = 0;
+      IF (action == ACTION_ACTIVATE_RAIL)
+         px += vx * delta;
 
-         px += level_rail.teleport_pxd;
-         py += level_rail.teleport_pyd;
+         IF (px >= grid_x1)
+            // CHANGE AREA
+            level_rail.teleport_pxd = -(grid_x1 - grid_x0);
+            level_rail.teleport_pyd = 0;
 
-         level_rail.py += level_rail.teleport_pyd;
-      ELSE
-         level_rail.teleport_pxd = 0;
-         level_rail.teleport_pyd = 0;
+            px += level_rail.teleport_pxd;
+            py += level_rail.teleport_pyd;
+
+            level_rail.py += level_rail.teleport_pyd;
+         ELSE
+            level_rail.teleport_pxd = 0;
+            level_rail.teleport_pyd = 0;
+         END
       END
+
+      level_rail.px = px;
+      FRAME;
+   END
+
+END
+//--------------------------------------------
+
+
+//--------------------------------------------
+PROCESS camera();
+//--------------------------------------------
+PRIVATE
+
+   INT target_y, INT target_z;
+
+BEGIN
+
+   binded_game_status = game_status;
+   ctype = c_m8;
+   priority = PRIORITY_CAMERA;
+
+   py = level_rail.py;
+   pz = level_rail.pz;
+   radius = 0;
+   height = 0;
+   m8.height = 0;
+
+   WHILE (game_status == binded_game_status)
+
+      px = level_rail.px;
 
       IF (action == ACTION_SPECTATE_PLAYER)
          py = level_rail.py + ((id_player.py - level_rail.py) / 2);
          pz = level_rail.pz + ((id_player.pz - level_rail.pz) / 2);
       END
-
-      level_rail.px = px;
 
       x = px / G_RES;
       y = py / G_RES;
