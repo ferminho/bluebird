@@ -708,6 +708,20 @@ END
 
 
 //--------------------------------------------
+FUNCTION log_my_coords();
+//--------------------------------------------
+BEGIN
+
+   log_formatted("Coords: "
+                 + "(" + itoa(father.px) + ", "
+                 + itoa(father.py) + ", "
+                 + itoa(father.pz) + ")", true);
+
+END
+//--------------------------------------------
+
+
+//--------------------------------------------
 FUNCTION log_formatted(STRING text, show_timestamp);
 //--------------------------------------------
 PRIVATE
