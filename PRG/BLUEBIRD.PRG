@@ -725,9 +725,9 @@ BEGIN
    total = 360 * TRIGO_RES;
 
    FOR (i = 0; i < total; i += 1)
-      psin[i] = sin(i * G_TO_TRIGO_DIV);
-      pcos[i] = cos(i * G_TO_TRIGO_DIV);
-      ptan[i] = tan(i * G_TO_TRIGO_DIV);
+      psin[i] = (sin(i * G_TO_TRIGO_DIV) * G_RES) / 1000;
+      pcos[i] = (cos(i * G_TO_TRIGO_DIV) * G_RES) / 1000;
+      ptan[i] = (tan(i * G_TO_TRIGO_DIV) * G_RES) / 1000;
    END
    half_fov_tan = tan(HALF_FOV);
 
