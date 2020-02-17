@@ -46,7 +46,15 @@ CONST
    TRIGO_RES = 10;      // Resolution for trigonometry
    G_TO_TRIGO_DIV = 100;// From global to trigo resolution division (should always be a division)
 
-   // Game logic
+   // Camera properties
+   FOV = 72;
+   HALF_FOV = FOV / 2;
+   CAMERA_ACCEL = 100;  // units / s^2
+   MAX_CAMERA_VEL = 300;// units / s
+
+   // Bird properties
+   BIRD_2D_SIZE = 50;
+   BIRD_HALF_2D_SIZE = 25;
    BIRD_SLOW_SPEED = 225;
    BIRD_STD_SPEED = 450;
    BIRD_HIGH_SPEED = 675;
@@ -56,8 +64,8 @@ CONST
 
    // Process priority
    PRIORITY_TIME_MASTER =     max_int;
-   PRIORITY_PLAYER_INPUT =    100000;
-   PRIORITY_RAIL_OPERATOR =   90000;
+   PRIORITY_PLAYER_INPUT =     100000;
+   PRIORITY_RAIL_OPERATOR =     90000;
    PRIORITY_CAMERA =          -100000;
 
    // Mode8
