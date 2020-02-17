@@ -44,10 +44,10 @@ CONST
    // Math and physics
    G_RES = 1000;        // GLOBAL RESOLUTION / precision to be used throughout all processes
    TRIGO_RES = 10;      // Resolution for trigonometry
-   G_TO_TRIGO_DIV = 100;// From global to trigo resolution division (should always be a division)
+   G_TO_TRIGO_DIV = 100;// From global to trigo resolution division (multiply if the other way around)
 
    // Camera properties
-   FOV = 72;
+   FOV = 72000;
    HALF_FOV = FOV / 2;
    CAMERA_ACCEL = 100;  // units / s^2
    MAX_CAMERA_VEL = 300;// units / s
@@ -166,6 +166,7 @@ GLOBAL
    WORD psin[3599];
    WORD pcos[3599];
    INT ptan[3599];
+   INT half_fov_tan; // tan of half the FOV
 
 LOCAL
 
@@ -674,15 +675,18 @@ FUNCTION init_precalculated_trigonometry();
 //--------------------------------------------
 PRIVATE
 
-   INT i;
+   INT i, total;
 
 BEGIN
 
-   FOR (i = 0; i < 3600; i += 1)
-      psin[i] = sin(i);
-      pcos[i] = cos(i);
-      ptan[i] = tan(i);
+   total = 360 * TRIGO_RES;
+
+   FOR (i = 0; i < total; i += 1)
+      psin[i] = sin(i * G_TO_TRIGO_DIV);
+      pcos[i] = cos(i * G_TO_TRIGO_DIV);
+      ptan[i] = tan(i * G_TO_TRIGO_DIV);
    END
+   half_fov_tan = tan(HALF_FOV);
 
 END
 //--------------------------------------------
