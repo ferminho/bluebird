@@ -49,6 +49,7 @@ CONST
    // Camera properties
    FOV = 72000;
    HALF_FOV = FOV / 2;
+   DIST_HRES = 250;     // distance at which the horizontal res is filling the screen horizontally
    CAMERA_ACCEL = 100;  // units / s^2
    MAX_CAMERA_VEL = 300;// units / s
 
@@ -487,9 +488,26 @@ PROCESS camera();
 //--------------------------------------------
 PRIVATE
 
+   INT rail_y_range; // in simple resolution
+   INT rail_z_range; // in simple resolution
+
+   // all these to calculate the 3D-2D conversions and player positioning on screen
+   INT player_dx;
+   INT projected_dist;
+   INT hres_at_player_plane;
+   INT screen_to_player_ratio;
+   INT margin;
+   INT player_y_ratio;
+   INT player_z_ratio;
+
    INT target_y, INT target_z;
 
 BEGIN
+
+   rail_y_range = level_info[current_level].area_y_rel_range[1]
+             - level_info[current_level].area_y_rel_range[0];
+   rail_z_range = level_info[current_level].area_z_abs_range[1]
+             - level_info[current_level].area_z_abs_range[0];
 
    binded_game_status = game_status;
    ctype = c_m8;
@@ -506,6 +524,31 @@ BEGIN
       px = level_rail.px;
 
       IF (action == ACTION_SPECTATE_PLAYER)
+         player_dx = id_player.px - level_rail.px;
+         projected_dist = ((player_dx / G_RES) * 2 * half_fov_tan);
+
+         hres_at_player_plane = (player_dx - DIST_HRES) / G_RES;
+         hres_at_player_plane = (hres_at_player_plane * half_fov_tan) / G_RES;
+         hres_at_player_plane = SCREEN_WIDTH + 2 * hres_at_player_plane; // in pixels
+         screen_to_player_ratio = (hres_at_player_plane * G_RES) / SCREEN_WIDTH; // in G_RES
+         margin = (BIRD_2D_SIZE * screen_to_player_ratio); // in G_RES
+         // TODO: not using margin for now. Should add it to always include ship in view (do not crop at edge)
+
+         player_y_ratio = (id_player.py - level_rail.min_y) / rail_y_range;
+         player_z_ratio = (id_player.pz - level_rail.min_z) / rail_z_range;
+
+         IF (projected_dist < rail_y_range)
+         ELSE
+            target_y = level_rail.py;
+         END
+
+         IF (projected_dist < rail_z_range)
+         ELSE
+            target_z = level_rail.pz;
+         END
+
+
+
          py = level_rail.py + ((id_player.py - level_rail.py) / 2);
          pz = level_rail.pz + ((id_player.pz - level_rail.pz) / 2);
       END
