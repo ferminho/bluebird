@@ -41,8 +41,12 @@ CONST
    MAX_FRAMESKIP = 2;
    MAIN_REGION = 1;
 
-   // Game logic
+   // Math and physics
    G_RES = 1000;        // GLOBAL RESOLUTION / precision to be used throughout all processes
+   TRIGO_RES = 10;      // Resolution for trigonometry
+   G_TO_TRIGO_DIV = 100;// From global to trigo resolution division (should always be a division)
+
+   // Game logic
    BIRD_SLOW_SPEED = 225;
    BIRD_STD_SPEED = 450;
    BIRD_HIGH_SPEED = 675;
@@ -147,6 +151,11 @@ GLOBAL
       INT roll;      // -1 (CCW) to 1 (CW)
    END
 
+   // Math
+   WORD psin[3599];
+   WORD pcos[3599];
+   INT ptan[3599];
+
 LOCAL
 
    // Game status process is binded to; it will be destroyed if game status changes
@@ -197,6 +206,7 @@ BEGIN
    set_fps(TARGET_FPS, MAX_FRAMESKIP);
    define_region(MAIN_REGION, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
+   init_precalculated_trigonometry();
    time_master(); // this should always be running
    player_input(); // same goes for player input
 
@@ -643,6 +653,30 @@ BEGIN
    angle = angle MOD 360000;
    IF (angle < 0) angle+= 360000; END
    RETURN(base_graph + (angle / ENTITY_ANGLE_STEP));
+
+END
+//--------------------------------------------
+
+
+// ----------------------------------------------------------
+// ------------- MATH & PHYSICS
+// ----------------------------------------------------------
+
+
+//--------------------------------------------
+FUNCTION init_precalculated_trigonometry();
+//--------------------------------------------
+PRIVATE
+
+   INT i;
+
+BEGIN
+
+   FOR (i = 0; i < 3600; i += 1)
+      psin[i] = sin(i);
+      pcos[i] = cos(i);
+      ptan[i] = tan(i);
+   END
 
 END
 //--------------------------------------------
