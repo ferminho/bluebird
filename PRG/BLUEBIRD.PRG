@@ -47,9 +47,10 @@ CONST
    G_TO_TRIGO_DIV = 100;// From global to trigo resolution division (multiply if the other way around)
 
    // Camera properties
-   FOV = 72000;
-   HALF_FOV = FOV / 2;
-   DIST_HRES = 250;     // distance at which the horizontal res is filling the screen horizontally
+   HFOV = 72000;
+   VFOV = 57220;
+   HALF_HFOV = HFOV / 2;
+   HALF_VFOV = VFOV / 2;
    CAMERA_ACCEL = 100;  // units / s^2
    MAX_CAMERA_VEL = 300;// units / s
 
@@ -167,7 +168,8 @@ GLOBAL
    WORD psin[3599];
    WORD pcos[3599];
    INT ptan[3599];
-   INT half_fov_tan; // tan of half the FOV
+   INT half_hfov_tan; // tan of half the HFOV
+   INT half_vfov_tan; // tan of half the VFOV
 
 LOCAL
 
@@ -488,17 +490,17 @@ PROCESS camera();
 //--------------------------------------------
 PRIVATE
 
-   INT rail_y_range; // in simple resolution
-   INT rail_z_range; // in simple resolution
+   INT rail_y_range;       // in G_RES
+   INT rail_z_range;       // in G_RES
+   INT half_rail_y_range;  // in simple res
+   INT half_rail_z_range;  // in simple_res
 
    // all these to calculate the 3D-2D conversions and player positioning on screen
    INT player_dx;
-   INT projected_dist;
-   INT hres_at_player_plane;
-   INT screen_to_player_ratio;
-   INT margin;
-   INT player_y_ratio;
-   INT player_z_ratio;
+   INT player_hres; // horiz resolution at player plane visible on screen (higher when farther)
+   INT player_vres;
+   INT player_ratio; // -1.0 to 1.0 on the rail_*_range (0.0 = center). In G_RES
+   INT camera_max_pos; // temp var used to determine camera pos for player_*_ratio = 1.0
 
    INT target_y, INT target_z;
 
@@ -506,8 +508,12 @@ BEGIN
 
    rail_y_range = level_info[current_level].area_y_rel_range[1]
              - level_info[current_level].area_y_rel_range[0];
+   half_rail_y_range = rail_y_range / 2;
    rail_z_range = level_info[current_level].area_z_abs_range[1]
              - level_info[current_level].area_z_abs_range[0];
+   half_rail_z_range = rail_z_range / 2;
+   rail_y_range *= G_RES;
+   rail_z_range *= G_RES;
 
    binded_game_status = game_status;
    ctype = c_m8;
@@ -524,33 +530,28 @@ BEGIN
       px = level_rail.px;
 
       IF (action == ACTION_SPECTATE_PLAYER)
-         player_dx = id_player.px - level_rail.px;
-         projected_dist = ((player_dx / G_RES) * 2 * half_fov_tan);
+         player_dx = (id_player.px - level_rail.px) / G_RES;
+         player_hres = player_dx * 2 * half_hfov_tan;
+         player_vres = player_dx * 2 * half_vfov_tan;
 
-         hres_at_player_plane = (player_dx - DIST_HRES) / G_RES;
-         hres_at_player_plane = (hres_at_player_plane * half_fov_tan) / G_RES;
-         hres_at_player_plane = SCREEN_WIDTH + 2 * hres_at_player_plane; // in pixels
-         screen_to_player_ratio = (hres_at_player_plane * G_RES) / SCREEN_WIDTH; // in G_RES
-         margin = (BIRD_2D_SIZE * screen_to_player_ratio); // in G_RES
-         // TODO: not using margin for now. Should add it to always include ship in view (do not crop at edge)
-
-         player_y_ratio = (id_player.py - level_rail.min_y) / rail_y_range;
-         player_z_ratio = (id_player.pz - level_rail.min_z) / rail_z_range;
-
-         IF (projected_dist < rail_y_range)
-         ELSE
-            target_y = level_rail.py;
+         target_y = level_rail.py;
+         IF (player_hres < rail_y_range)
+            player_ratio = (id_player.py - level_rail.py) / half_rail_y_range;
+            camera_max_pos = (rail_y_range - player_hres) / 2;
+            target_y += (camera_max_pos / G_RES) * player_ratio;
          END
 
-         IF (projected_dist < rail_z_range)
-         ELSE
-            target_z = level_rail.pz;
+         target_z = level_rail.pz;
+         IF (player_vres < rail_z_range)
+            player_ratio = (id_player.pz - level_rail.pz) / half_rail_z_range;
+            camera_max_pos = (rail_z_range - player_vres) / 2;
+            target_z += (camera_max_pos / G_RES) * player_ratio;
          END
 
-
-
-         py = level_rail.py + ((id_player.py - level_rail.py) / 2);
-         pz = level_rail.pz + ((id_player.pz - level_rail.pz) / 2);
+         py = target_y;
+         pz = target_z;
+         //py = level_rail.py + ((id_player.py - level_rail.py) / 2);
+         //pz = level_rail.pz + ((id_player.pz - level_rail.pz) / 2);
       END
 
       x = px / G_RES;
@@ -594,7 +595,6 @@ BEGIN
       y = py / G_RES;
       z = pz / G_RES;
       graph = get_entity_angle_graph(base_graph, rangle);
-
       FRAME;
    END
 
@@ -729,7 +729,8 @@ BEGIN
       pcos[i] = (cos(i * G_TO_TRIGO_DIV) * G_RES) / 1000;
       ptan[i] = (tan(i * G_TO_TRIGO_DIV) * G_RES) / 1000;
    END
-   half_fov_tan = tan(HALF_FOV);
+   half_hfov_tan = tan(HALF_HFOV);
+   half_vfov_tan = tan(HALF_VFOV);
 
 END
 //--------------------------------------------
