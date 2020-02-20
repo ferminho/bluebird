@@ -48,7 +48,7 @@ CONST
 
    // Camera properties
    HFOV = 72000;
-   VFOV = 57220;
+   VFOV = 59000;
    HALF_HFOV = HFOV / 2;
    HALF_VFOV = VFOV / 2;
    CAMERA_ACCEL = 100;  // units / s^2
@@ -56,7 +56,7 @@ CONST
 
    // Bird properties
    BIRD_2D_SIZE = 50;
-   BIRD_HALF_2D_SIZE = 25;
+   BIRD_HALF_2D_SIZE = BIRD_2D_SIZE / 2;
    BIRD_SLOW_SPEED = 225;
    BIRD_STD_SPEED = 450;
    BIRD_HIGH_SPEED = 675;
@@ -124,11 +124,11 @@ GLOBAL
          "fpg\bbst01.fpg",          // FPG path
          15, 21, 23,                // Fog color
          10, 80,                    // Fog distance
-         1600,                      // Camera Z
+         1650,                      // Camera Z
          14992, 5992, 8,            // Area width, height, gap among areas
          32, 7712,                  // Area X absolute range
-         -250, 250,                 // Area Y relative range
-         1500, 1700;                // Area Z absolute range
+         -150, 150,                 // Area Y relative range
+         1500, 1800;                // Area Z absolute range
 
    STRUCT level_rail // info about the current "rail" the camera is following
       // All below is realtime info in G_RES units!
@@ -512,7 +512,9 @@ BEGIN
    rail_z_range = level_info[current_level].area_z_abs_range[1]
              - level_info[current_level].area_z_abs_range[0];
    half_rail_z_range = rail_z_range / 2;
+   rail_y_range += BIRD_2D_SIZE; // to include full ship in view
    rail_y_range *= G_RES;
+   rail_z_range += BIRD_2D_SIZE; // to include full ship in view
    rail_z_range *= G_RES;
 
    binded_game_status = game_status;
@@ -528,30 +530,26 @@ BEGIN
    WHILE (game_status == binded_game_status)
 
       px = level_rail.px;
+      py = level_rail.py;
+      pz = level_rail.pz;
 
       IF (action == ACTION_SPECTATE_PLAYER)
          player_dx = (id_player.px - level_rail.px) / G_RES;
          player_hres = player_dx * 2 * half_hfov_tan;
          player_vres = player_dx * 2 * half_vfov_tan;
 
-         target_y = level_rail.py;
          IF (player_hres < rail_y_range)
             player_ratio = (id_player.py - level_rail.py) / half_rail_y_range;
             camera_max_pos = (rail_y_range - player_hres) / 2;
-            target_y += (camera_max_pos / G_RES) * player_ratio;
+            py += (camera_max_pos / G_RES) * player_ratio;
          END
 
-         target_z = level_rail.pz;
          IF (player_vres < rail_z_range)
-            player_ratio = (id_player.pz - level_rail.pz) / half_rail_z_range;
+            player_ratio = id_player.pz + BIRD_HALF_2D_SIZE * G_RES; // position correction
+            player_ratio = (player_ratio - level_rail.pz) / half_rail_z_range;
             camera_max_pos = (rail_z_range - player_vres) / 2;
-            target_z += (camera_max_pos / G_RES) * player_ratio;
+            pz += ((camera_max_pos / G_RES) * player_ratio);
          END
-
-         py = target_y;
-         pz = target_z;
-         //py = level_rail.py + ((id_player.py - level_rail.py) / 2);
-         //pz = level_rail.pz + ((id_player.pz - level_rail.pz) / 2);
       END
 
       x = px / G_RES;
