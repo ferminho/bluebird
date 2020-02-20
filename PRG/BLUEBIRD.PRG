@@ -37,7 +37,7 @@ CONST
    SCREEN_HEIGHT = 240;
    SCREEN_RESTORE = no_restore; // no_restore, partial_restore, complete_restore
    SCREEN_DUMP = complete_dump; // partial_dump, complete_dump
-   TARGET_FPS = 60;
+   TARGET_FPS = 120;
    MAX_FRAMESKIP = 2;
    MAIN_REGION = 1;
 
