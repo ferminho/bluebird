@@ -586,12 +586,16 @@ BEGIN
 
       px = level_rail.px + (BIRD_STD_DISTANCE * G_RES);
 
-      py += input[I_PLAYER].x * delta;
-      IF (py < level_rail.min_y) py = level_rail.min_y; END
-      IF (py > level_rail.max_y) py = level_rail.max_y; END
-      pz += input[I_PLAYER].y * delta;
-      IF (pz < level_rail.min_z) pz = level_rail.min_z; END
-      IF (pz > level_rail.max_z) pz = level_rail.max_z; END
+      vy += (input[I_PLAYER].x * delta) / G_RES;
+      vz += (input[I_PLAYER].y * delta) / G_RES;
+
+      py += vy * delta;
+      pz += vz * delta;
+
+      IF (py < level_rail.min_y) py = level_rail.min_y; vy = 0; END
+      IF (py > level_rail.max_y) py = level_rail.max_y; vy = 0; END
+      IF (pz < level_rail.min_z) pz = level_rail.min_z; vz = 0; END
+      IF (pz > level_rail.max_z) pz = level_rail.max_z; vz = 0; END
 
       x = px / G_RES;
       y = py / G_RES;
@@ -793,19 +797,26 @@ PROCESS write_debug_info();
 //--------------------------------------------
 BEGIN
 
-   write    (0, 0 , 0 , 0, "X");
+   write    (0, 0 , 0 , 0, "CX");
    write_int(0, 20, 0 , 0, &id_camera.x);
-   write    (0, 0 , 8 , 0, "Y");
+   write    (0, 0 , 8 , 0, "CY");
    write_int(0, 20, 8 , 0, &id_camera.y);
-   write    (0, 0 , 16, 0, "Z");
+   write    (0, 0 , 16, 0, "CZ");
    write_int(0, 20, 16, 0, &id_camera.z);
 
-   write    (0, 270, 0 , 0, "X");
+   write    (0, 270, 0 , 0, "PX");
    write_int(0, 290, 0 , 0, &id_player.x);
-   write    (0, 270, 8 , 0, "Y");
+   write    (0, 270, 8 , 0, "PY");
    write_int(0, 290, 8 , 0, &id_player.y);
-   write    (0, 270, 16, 0, "Z");
+   write    (0, 270, 16, 0, "PZ");
    write_int(0, 290, 16, 0, &id_player.z);
+
+   write    (0, 270, 24 , 0, "PVX");
+   write_int(0, 290, 24, 0, &id_player.vx);
+   write    (0, 270, 32, 0, "PVY");
+   write_int(0, 290, 32, 0, &id_player.vy);
+   write    (0, 270, 40, 0, "PVZ");
+   write_int(0, 290, 40, 0, &id_player.vz);
 
 
    write    (0, 0 , 32, 0, "FPS");
