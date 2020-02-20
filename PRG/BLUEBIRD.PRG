@@ -530,8 +530,8 @@ BEGIN
    WHILE (game_status == binded_game_status)
 
       px = level_rail.px;
-      py = level_rail.py;
-      pz = level_rail.pz;
+      target_y = level_rail.py;
+      target_z = level_rail.pz;
 
       IF (action == ACTION_SPECTATE_PLAYER)
          player_dx = (id_player.px - level_rail.px) / G_RES;
@@ -539,18 +539,22 @@ BEGIN
          player_vres = player_dx * 2 * half_vfov_tan;
 
          IF (player_hres < rail_y_range)
-            player_ratio = (id_player.py - level_rail.py) / half_rail_y_range;
+            player_ratio = (id_player.py + 500 - level_rail.py) / half_rail_y_range;
             camera_max_pos = (rail_y_range - player_hres) / 2;
-            py += (camera_max_pos / G_RES) * player_ratio;
+            target_y += (camera_max_pos / G_RES) * player_ratio;
          END
 
          IF (player_vres < rail_z_range)
-            player_ratio = id_player.pz + BIRD_HALF_2D_SIZE * G_RES; // position correction
+            player_ratio = id_player.pz + 500 + BIRD_HALF_2D_SIZE * G_RES; // position correction
             player_ratio = (player_ratio - level_rail.pz) / half_rail_z_range;
             camera_max_pos = (rail_z_range - player_vres) / 2;
-            pz += ((camera_max_pos / G_RES) * player_ratio);
+            target_z += ((camera_max_pos / G_RES) * player_ratio);
          END
       END
+
+      // smooth approximation
+      py = (target_y * 25 + py * 75) / 100;
+      pz = (target_z * 25 + pz * 75) / 100;
 
       x = px / G_RES;
       y = py / G_RES;
