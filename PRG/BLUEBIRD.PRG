@@ -142,7 +142,7 @@ GLOBAL
 
    // Resources: file res
    fpg_level;  // FPG handle of current level WLD
-   fpg_ships;  // FPG handle of ships library
+   fpg_bird;  // FPG handle of bird library
    wld_level;  // WLD handle of current level
 
    // Important processes
@@ -333,7 +333,7 @@ BEGIN
 
    current_level = level;
    load_level_resources(level);
-   preprocess_angles(fpg_ships, 1, 2, 20);
+   preprocess_angles(fpg_bird, 900, 1, 15);
    post_process();
 
    id_rail_operator = rail_operator();
@@ -576,8 +576,8 @@ BEGIN
    binded_game_status = game_status;
 
    ctype = c_m8;
-   file = fpg_ships;
-   base_graph = 2;
+   file = fpg_bird;
+   base_graph = 1;
 
    py = level_rail.py;
    pz = level_rail.pz - BIRD_HALF_2D_SIZE;
@@ -604,6 +604,7 @@ BEGIN
       x = px / G_RES;
       y = py / G_RES;
       z = pz / G_RES;
+
       graph = get_entity_angle_graph(base_graph, rangle);
       FRAME;
    END
@@ -625,7 +626,7 @@ BEGIN
    load_pal(BASE_PATH + level_info[level].fpg_path);
    fpg_level = load_fpg(BASE_PATH + level_info[level].fpg_path);
    wld_level = load_wld(BASE_PATH + level_info[level].wld_path, fpg_level);
-   fpg_ships = load_fpg(BASE_PATH + "fpg\ships.fpg");
+   fpg_bird = load_fpg(BASE_PATH + "fpg\bird.fpg");
    log("Loaded resources for level " + itoa(level));
 
 END
