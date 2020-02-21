@@ -64,6 +64,7 @@ CONST
    BIRD_CLOSE_DISTANCE = 128;
    BIRD_STD_DISTANCE = 160;
    BIRD_LONG_DISTANCE = 192;
+   BIRD_MAX_VEL = 300; // "2D" speed
 
    // Process priority
    PRIORITY_TIME_MASTER =     max_int;
@@ -84,7 +85,7 @@ CONST
    FADE_SPEED = 10; // standard fade speed for transitions
 
    // Dynamic graph definitions
-   ENTITY_ANGLES = 4;
+   ENTITY_ANGLES = 32;
    ENTITY_ANGLE_STEP = 360000 / ENTITY_ANGLES;
    PLAYER_SHIP_MAIN = 1;
 
@@ -131,11 +132,11 @@ GLOBAL
          -200, 200,                 // Area Y relative range
          1500, 1900;                // Area Z absolute range
 
-   STRUCT level_rail // info about the current "rail" the camera is following
-      // All below is realtime info in G_RES units!
-      INT teleport_pxd, INT teleport_pyd; // contains the teleport offset/delta during teleport frame
-      INT px, INT py, INT pz; // updated every frame with base-px,py,pz not including camera offset
-      // Limits of the flyable zone, updated realtime
+   STRUCT level_rail // info about the current "rail" the camera and player are following, in realtime
+      INT teleport_pxd, INT teleport_pyd; // (G_RES) teleport offset/delta during teleport frame
+      INT px, INT py, INT pz; // (G_RES) updated every frame with base-px,py,pz
+      INT x, INT y, INT z; // in simple res
+      // Limits of the flyable zone in G_RES
       INT min_y, INT max_y;
       INT min_z, INT max_z;
    END
@@ -445,6 +446,9 @@ BEGIN
    level_rail.px = px;
    level_rail.py = py;
    level_rail.pz = pz;
+   level_rail.x = px / G_RES;
+   level_rail.y = py / G_RES;
+   level_rail.z = pz / G_RES;
 
    rel_min_y = level_info[current_level].area_y_rel_range[0] * G_RES;
    rel_max_y = level_info[current_level].area_y_rel_range[1] * G_RES;
@@ -452,7 +456,6 @@ BEGIN
    level_rail.max_y = level_rail.py + rel_max_y;
    level_rail.min_z = level_info[current_level].area_z_abs_range[0] * G_RES;
    level_rail.max_z = level_info[current_level].area_z_abs_range[1] * G_RES;
-
 
    vx = BIRD_STD_SPEED;
 
@@ -480,6 +483,9 @@ BEGIN
 
       level_rail.px = px;
 
+      level_rail.x = level_rail.px / G_RES;
+      level_rail.y = level_rail.py / G_RES;
+      level_rail.z = level_rail.pz / G_RES;
       FRAME;
    END
 
@@ -536,19 +542,19 @@ BEGIN
       target_z = level_rail.pz;
 
       IF (action == ACTION_SPECTATE_PLAYER)
-         player_dx = (id_player.px - level_rail.px) / G_RES;
+         player_dx = id_player.x - level_rail.x;
          player_hres = player_dx * 2 * half_hfov_tan;
          player_vres = player_dx * 2 * half_vfov_tan;
 
          IF (player_hres < rail_y_range)
-            player_ratio = (id_player.py - level_rail.py) / half_rail_y_range;
+            player_ratio = ((id_player.y - level_rail.y) * G_RES) / half_rail_y_range;
             camera_max_pos = (rail_y_range - player_hres) / 2;
             target_y += (camera_max_pos / G_RES) * player_ratio;
          END
 
          IF (player_vres < rail_z_range)
-            player_ratio = id_player.pz + BIRD_HALF_2D_SIZE * G_RES; // position correction
-            player_ratio = (player_ratio - level_rail.pz) / half_rail_z_range;
+            player_ratio = id_player.z + BIRD_HALF_2D_SIZE; // position correction
+            player_ratio = ((player_ratio - level_rail.z) * G_RES) / half_rail_z_range;
             camera_max_pos = (rail_z_range - player_vres) / 2;
             target_z += ((camera_max_pos / G_RES) * player_ratio) - (GROUND_MARGIN * G_RES);
          END
@@ -571,6 +577,12 @@ END
 //--------------------------------------------
 PROCESS bird();
 //--------------------------------------------
+PRIVATE
+
+   INT vel_mod;
+   INT clamp_factor;
+   INT max_rangle;
+
 BEGIN
 
    binded_game_status = game_status;
@@ -590,8 +602,15 @@ BEGIN
 
       vy += (input[I_PLAYER].x * 5 * delta) / G_RES;
       vz += (input[I_PLAYER].y * 5 * delta) / G_RES;
-      vy = clamp(vy, -300, 300);
-      vz = clamp(vz, -300, 300);
+      vy = clamp(vy, -BIRD_MAX_VEL, BIRD_MAX_VEL);
+      vz = clamp(vz, -BIRD_MAX_VEL, BIRD_MAX_VEL);
+      vel_mod = sqrt(vy * vy + vz * vz);
+      IF (vel_mod > BIRD_MAX_VEL)
+         clamp_factor = (BIRD_MAX_VEL * G_RES) / vel_mod;
+         vel_mod = BIRD_MAX_VEL;
+         vy = (vy * clamp_factor) / G_RES;
+         vz = (vz * clamp_factor) / G_RES;
+      END
 
       py += vy * delta;
       pz += vz * delta;
@@ -600,6 +619,10 @@ BEGIN
       IF (py > level_rail.max_y) py = level_rail.max_y; vy = 0; END
       IF (pz < level_rail.min_z) pz = level_rail.min_z; vz = 0; END
       IF (pz > level_rail.max_z) pz = level_rail.max_z; vz = 0; END
+
+      max_rangle = (100000 * vel_mod) / BIRD_MAX_VEL;
+      rangle = rangle - (vy >> 1) * delta;
+      rangle = clamp(rangle, -max_rangle, max_rangle + 10000);
 
       x = px / G_RES;
       y = py / G_RES;
