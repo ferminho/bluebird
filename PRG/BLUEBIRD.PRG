@@ -37,7 +37,7 @@ CONST
    SCREEN_HEIGHT = 240;
    SCREEN_RESTORE = no_restore; // no_restore, partial_restore, complete_restore
    SCREEN_DUMP = complete_dump; // partial_dump, complete_dump
-   TARGET_FPS = 120;
+   TARGET_FPS = 100;
    MAX_FRAMESKIP = 2;
    MAIN_REGION = 1;
 
@@ -51,6 +51,7 @@ CONST
    VFOV = 59000;
    HALF_HFOV = HFOV / 2;
    HALF_VFOV = VFOV / 2;
+   GROUND_MARGIN = 10;
    CAMERA_ACCEL = 100;  // units / s^2
    MAX_CAMERA_VEL = 300;// units / s
 
@@ -60,8 +61,8 @@ CONST
    BIRD_SLOW_SPEED = 225;
    BIRD_STD_SPEED = 450;
    BIRD_HIGH_SPEED = 675;
-   BIRD_CLOSE_DISTANCE = 64;
-   BIRD_STD_DISTANCE = 128;
+   BIRD_CLOSE_DISTANCE = 128;
+   BIRD_STD_DISTANCE = 160;
    BIRD_LONG_DISTANCE = 192;
 
    // Process priority
@@ -124,11 +125,11 @@ GLOBAL
          "fpg\bbst01.fpg",          // FPG path
          15, 21, 23,                // Fog color
          10, 80,                    // Fog distance
-         1650,                      // Camera Z
+         1700,                      // Camera Z
          14992, 5992, 8,            // Area width, height, gap among areas
          32, 7712,                  // Area X absolute range
-         -150, 150,                 // Area Y relative range
-         1500, 1800;                // Area Z absolute range
+         -200, 200,                 // Area Y relative range
+         1500, 1900;                // Area Z absolute range
 
    STRUCT level_rail // info about the current "rail" the camera is following
       // All below is realtime info in G_RES units!
@@ -363,6 +364,7 @@ END
 //--------------------------------------------
 
 
+
 // ----------------------------------------------------------
 // ------------- INPUT
 // ----------------------------------------------------------
@@ -514,7 +516,7 @@ BEGIN
    half_rail_z_range = rail_z_range / 2;
    rail_y_range += BIRD_2D_SIZE; // to include full ship in view
    rail_y_range *= G_RES;
-   rail_z_range += BIRD_2D_SIZE; // to include full ship in view
+   rail_z_range += BIRD_2D_SIZE + GROUND_MARGIN; // same and also let some margin to ground
    rail_z_range *= G_RES;
 
    binded_game_status = game_status;
@@ -539,22 +541,22 @@ BEGIN
          player_vres = player_dx * 2 * half_vfov_tan;
 
          IF (player_hres < rail_y_range)
-            player_ratio = (id_player.py + 500 - level_rail.py) / half_rail_y_range;
+            player_ratio = (id_player.py - level_rail.py) / half_rail_y_range;
             camera_max_pos = (rail_y_range - player_hres) / 2;
             target_y += (camera_max_pos / G_RES) * player_ratio;
          END
 
          IF (player_vres < rail_z_range)
-            player_ratio = id_player.pz + 500 + BIRD_HALF_2D_SIZE * G_RES; // position correction
+            player_ratio = id_player.pz + BIRD_HALF_2D_SIZE * G_RES; // position correction
             player_ratio = (player_ratio - level_rail.pz) / half_rail_z_range;
             camera_max_pos = (rail_z_range - player_vres) / 2;
-            target_z += ((camera_max_pos / G_RES) * player_ratio);
+            target_z += ((camera_max_pos / G_RES) * player_ratio) - (GROUND_MARGIN * G_RES);
          END
       END
 
       // smooth approximation
-      py = (target_y * 25 + py * 75) / 100;
-      pz = (target_z * 25 + pz * 75) / 100;
+      py = (target_y * 75 + py * 25) / 100;
+      pz = (target_z * 75 + pz * 25) / 100;
 
       x = px / G_RES;
       y = py / G_RES;
@@ -578,7 +580,7 @@ BEGIN
    base_graph = 2;
 
    py = level_rail.py;
-   pz = level_rail.pz;
+   pz = level_rail.pz - BIRD_HALF_2D_SIZE;
    radius = BIRD_HALF_2D_SIZE;
    height = BIRD_2D_SIZE;
 
@@ -586,8 +588,10 @@ BEGIN
 
       px = level_rail.px + (BIRD_STD_DISTANCE * G_RES);
 
-      vy += (input[I_PLAYER].x * delta) / G_RES;
-      vz += (input[I_PLAYER].y * delta) / G_RES;
+      vy += (input[I_PLAYER].x * 5 * delta) / G_RES;
+      vz += (input[I_PLAYER].y * 5 * delta) / G_RES;
+      vy = clamp(vy, -300, 300);
+      vz = clamp(vz, -300, 300);
 
       py += vy * delta;
       pz += vz * delta;
@@ -740,6 +744,21 @@ BEGIN
 
 END
 //--------------------------------------------
+
+
+//--------------------------------------------
+FUNCTION clamp(INT value, INT min, INT max);
+//--------------------------------------------
+BEGIN
+
+   IF (value <= min) RETURN(min); END
+   IF (value >= max) RETURN(max); END
+   RETURN(value);
+
+END
+//--------------------------------------------
+
+
 
 
 // ----------------------------------------------------------
