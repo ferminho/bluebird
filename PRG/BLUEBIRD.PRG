@@ -93,6 +93,7 @@ CONST
    ACTION_ACTIVATE_RAIL = 2;
 
    // Level definition constants
+   LEVEL_DEF_FILE = "levels.dat";
    LEVEL_MAX_LEVELS = 10;
    LEVEL_MAX_BLOCKS = 100;
    BLOCK_FLAG_CYCLE_WHILE_ENEMIES = 1;
