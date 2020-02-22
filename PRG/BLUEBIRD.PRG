@@ -56,7 +56,8 @@ CONST
    MAX_CAMERA_VEL = 300;// units / s
 
    // Bird properties
-   BIRD_2D_SIZE = 50;
+   BIRD_SCALING = 15;   // %
+   BIRD_2D_SIZE = 45;   // size of 2D sprite (ship itself, not container map)
    BIRD_HALF_2D_SIZE = BIRD_2D_SIZE / 2;
    BIRD_SLOW_SPEED = 225;
    BIRD_STD_SPEED = 450;
@@ -334,7 +335,7 @@ BEGIN
 
    current_level = level;
    load_level_resources(level);
-   preprocess_angles(fpg_bird, 900, 1, 15);
+   preprocess_angles(fpg_bird, 900, 1, BIRD_SCALING);
    post_process();
 
    id_rail_operator = rail_operator();
