@@ -7,14 +7,6 @@
 // -------------------------------------------
 
 
-// Some notes about research I did:
-// - Graph height impacts how m8 positions the graphic. Graph center does NOT
-// - For a graph to be centered on screen it must be located at same Z as camera, but,
-//    considering 0 height, m8_heights, etc, graph must be at camera.Z - (graph_height / 2) - 7.5
-//    I haven't been able to fully understand why that 7.5. Must be related to perspective I guess but
-//    it's not making 100% sense.
-
-
 //--------------------------------------------
 PROGRAM bluebird;
 //--------------------------------------------
@@ -105,24 +97,32 @@ GLOBAL
    INT game_status; // current status, usually id of game status handler
 
    // Levels
-   INT current_level;
+   INT lev; // current level - name is unusually short for commodity
 
-   STRUCT levels // all coords are resolution-1 based
+   STRUCT levels // all coords are in simple res
       STRING name;
-      STRING wld_path;
-      STRING fpg_path;
-      BYTE fog_color[2];
-      BYTE fog_distance[1];
-      INT camera_z;
-      INT area_width;
-      INT area_height;
-      INT area_gap;
-      WORD area_x_abs_range[1];
-      INT area_y_rel_range[1];
-      WORD area_z_abs_range[1];
+      INT blocks; // number of level blocks
+      STRUCT res
+         STRING wld_path;
+         STRING fpg_path;
+      END
+      STRUCT visual
+         BYTE fog_color[2];
+         BYTE fog_distance[1];
+      END
+      STRUCT coords
+         INT camera_z;
+         INT area_width;
+         INT area_height;
+         INT area_gap;
+         WORD area_x_abs_range[1];
+         INT area_y_rel_range[1];
+         WORD area_z_abs_range[1];
+      END
    END =
          // --- LEVEL 0
          "Etherfax - Goliath Sea",  // Name
+         0,                         // Blocks (not yet used)
          "wld\bbst01.wld",          // WLD path
          "fpg\bbst01.fpg",          // FPG path
          15, 21, 23,                // Fog color
@@ -325,15 +325,15 @@ END
 
 
 //--------------------------------------------
-FUNCTION play_level(INT level);
+FUNCTION play_level(INT new_level);
 //--------------------------------------------
 BEGIN
 
    game_status = id;
-   log("Playing level " + itoa(level));
+   log("Playing level " + itoa(new_level));
 
-   current_level = level;
-   load_level_resources(level);
+   lev = new_level;
+   load_level_resources(new_level);
    preprocess_angles(fpg_bird, 900, 1, BIRD_SCALING);
    post_process();
 
@@ -342,11 +342,11 @@ BEGIN
    id_player = bird();
 
    start_mode8(id_camera, MAIN_M8, MAIN_REGION);
-   set_env_color(levels[level].fog_color[0],
-                 levels[level].fog_color[1],
-                 levels[level].fog_color[2]);
-   set_fog(levels[level].fog_distance[0],
-           levels[level].fog_distance[1]);
+   set_env_color(levels[lev].visual.fog_color[0],
+                 levels[lev].visual.fog_color[1],
+                 levels[lev].visual.fog_color[2]);
+   set_fog(levels[lev].visual.fog_distance[0],
+           levels[lev].visual.fog_distance[1]);
 
    IF (DEVELOPER_MODE)
       write_debug_info();
@@ -423,12 +423,12 @@ BEGIN
    binded_game_status = game_status;
    priority = PRIORITY_RAIL_OPERATOR;
 
-   // cache values in shorter variables
-   area_w = levels[current_level].area_width;
-   area_h = levels[current_level].area_height;
-   area_gap = levels[current_level].area_gap;
-   area_x0 = levels[current_level].area_x_abs_range[0];
-   area_x1 = levels[current_level].area_x_abs_range[1];
+   // cache values
+   area_w = levels[lev].coords.area_width;
+   area_h = levels[lev].coords.area_height;
+   area_gap = levels[lev].coords.area_gap;
+   area_x0 = levels[lev].coords.area_x_abs_range[0];
+   area_x1 = levels[lev].coords.area_x_abs_range[1];
 
    // calculate the map "grid" coords and dimensions
    grid_x0 = area_x0 * G_RES;
@@ -441,7 +441,7 @@ BEGIN
 
    px = grid_x0;
    py = grid_y0;
-   pz = levels[current_level].camera_z * G_RES;
+   pz = levels[lev].coords.camera_z * G_RES;
 
    level_rail.px = px;
    level_rail.py = py;
@@ -450,12 +450,12 @@ BEGIN
    level_rail.y = py / G_RES;
    level_rail.z = pz / G_RES;
 
-   rel_min_y = levels[current_level].area_y_rel_range[0] * G_RES;
-   rel_max_y = levels[current_level].area_y_rel_range[1] * G_RES;
+   rel_min_y = levels[lev].coords.area_y_rel_range[0] * G_RES;
+   rel_max_y = levels[lev].coords.area_y_rel_range[1] * G_RES;
    level_rail.min_y = level_rail.py + rel_min_y;
    level_rail.max_y = level_rail.py + rel_max_y;
-   level_rail.min_z = levels[current_level].area_z_abs_range[0] * G_RES;
-   level_rail.max_z = levels[current_level].area_z_abs_range[1] * G_RES;
+   level_rail.min_z = levels[lev].coords.area_z_abs_range[0] * G_RES;
+   level_rail.max_z = levels[lev].coords.area_z_abs_range[1] * G_RES;
 
    vx = BIRD_STD_SPEED;
 
@@ -514,11 +514,11 @@ PRIVATE
 
 BEGIN
 
-   rail_y_range = levels[current_level].area_y_rel_range[1]
-             - levels[current_level].area_y_rel_range[0];
+   rail_y_range = levels[lev].coords.area_y_rel_range[1]
+             - levels[lev].coords.area_y_rel_range[0];
    half_rail_y_range = rail_y_range / 2;
-   rail_z_range = levels[current_level].area_z_abs_range[1]
-             - levels[current_level].area_z_abs_range[0];
+   rail_z_range = levels[lev].coords.area_z_abs_range[1]
+             - levels[lev].coords.area_z_abs_range[0];
    half_rail_z_range = rail_z_range / 2;
    rail_y_range += BIRD_2D_SIZE; // to include full ship in view
    rail_y_range *= G_RES;
@@ -642,15 +642,15 @@ END
 
 
 //--------------------------------------------
-FUNCTION load_level_resources(INT level);
+FUNCTION load_level_resources(INT new_level);
 //--------------------------------------------
 BEGIN
 
-   load_pal(BASE_PATH + levels[level].fpg_path);
-   fpg_level = load_fpg(BASE_PATH + levels[level].fpg_path);
-   wld_level = load_wld(BASE_PATH + levels[level].wld_path, fpg_level);
+   load_pal(BASE_PATH + levels[lev].res.fpg_path);
+   fpg_level = load_fpg(BASE_PATH + levels[lev].res.fpg_path);
+   wld_level = load_wld(BASE_PATH + levels[lev].res.wld_path, fpg_level);
    fpg_bird = load_fpg(BASE_PATH + "fpg\bird.fpg");
-   log("Loaded resources for level " + itoa(level));
+   log("Loaded resources for level " + itoa(new_level));
 
 END
 //--------------------------------------------
