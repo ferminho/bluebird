@@ -130,7 +130,7 @@ GLOBAL
       // Blocks definition include the sucession of areas, as well as enemy waves
       INT blocks_count;
       STRUCT blocks[LEVEL_MAX_BLOCKS]
-         STRING areas; // areas in space-delimited string (e.g. "0 12 1 1 3 1 0"
+         STRING areas; // areas in space-delimited string (e.g. "0 12 1 1 3 1 0"), "" = empty
          INT flags;  // block properties, default 0
          STRING enemies; // enemy wave info in BBEWML
       END
