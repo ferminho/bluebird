@@ -92,24 +92,31 @@ CONST
    // Rail actions
    ACTION_ACTIVATE_RAIL = 2;
 
+   // Level definition constants
+   LEVEL_MAX_LEVELS = 10;
+   LEVEL_MAX_BLOCKS = 100;
+   BLOCK_FLAG_CYCLE_WHILE_ENEMIES = 1;
+
 GLOBAL
 
    INT game_status; // current status, usually id of game status handler
-
-   // Levels
    INT lev; // current level - name is unusually short for commodity
 
-   STRUCT levels // all coords are in simple res
-      STRING name;
-      INT blocks; // number of level blocks
+   // Levels definitions
+   //    Since Div is not very fond of dynamic data structures, there are some "fixed big struct arrays".
+   STRUCT levels[LEVEL_MAX_LEVELS]
+      STRING name;   // "" = empty
+      // Resources
       STRUCT res
          STRING wld_path;
          STRING fpg_path;
       END
+      // Info about visuals, FX, etc
       STRUCT visual
          BYTE fog_color[2];
          BYTE fog_distance[1];
       END
+      // World-related coords and dimensions, all in simple res
       STRUCT coords
          INT camera_z;
          INT area_width;
@@ -119,10 +126,16 @@ GLOBAL
          INT area_y_rel_range[1];
          WORD area_z_abs_range[1];
       END
+      // Blocks definition include the sucession of areas, as well as enemy waves
+      INT blocks_count;
+      STRUCT blocks[LEVEL_MAX_BLOCKS]
+         STRING areas; // areas in space-delimited string (e.g. "0 12 1 1 3 1 0"
+         INT flags;  // block properties, default 0
+         STRING enemies; // enemy wave info in BBEWML
+      END
    END =
          // --- LEVEL 0
          "Etherfax - Goliath Sea",  // Name
-         0,                         // Blocks (not yet used)
          "wld\bbst01.wld",          // WLD path
          "fpg\bbst01.fpg",          // FPG path
          15, 21, 23,                // Fog color
@@ -135,8 +148,11 @@ GLOBAL
 
    STRUCT level_rail // info about the current "rail" the camera and player are following, in realtime
       INT teleport_pxd, INT teleport_pyd; // (G_RES) teleport offset/delta during teleport frame
+      // coords
       INT px, INT py, INT pz; // (G_RES) updated every frame with base-px,py,pz
       INT x, INT y, INT z; // in simple res
+      // position in world
+      INT block, INT area;
       // Limits of the flyable zone in G_RES
       INT min_y, INT max_y;
       INT min_z, INT max_z;
@@ -331,6 +347,11 @@ BEGIN
 
    game_status = id;
    log("Playing level " + itoa(new_level));
+
+   IF (levels[new_level].name == "")
+      log("Level " + itoa(new_level) + " not defined. Returning");
+      RETURN;
+   END
 
    lev = new_level;
    load_level_resources(new_level);
