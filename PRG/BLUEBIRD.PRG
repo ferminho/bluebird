@@ -455,7 +455,7 @@ BEGIN
    grid_columns = MAX_M8_COORD / grid_cell_width;
 
    px = grid_x0;
-   py = grid_y0;
+   py = grid_y0 + (area_h * G_RES);
    pz = levels[lev].coords.camera_z * G_RES;
 
    level_rail.px = px;

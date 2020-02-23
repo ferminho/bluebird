@@ -78,10 +78,10 @@ BEGIN
    // COORDS
    lev.coords.camera_z = 1700;
    set_area_dimensions(lev, 9992, 5992, 8);
-   set_area_ranges(lev, 32, 5152, -200, 200, 1500, 1900);
+   set_area_ranges(lev, 32, 6432, -300, 300, 1500, 1900);
    // BLOCKS
    // 000
-   lev.blocks[i].areas = "0 0 0 0 0 0 0 0 0 0";
+   lev.blocks[i].areas = "1 0 1 1 1 1 1 1 1 1";
    lev.blocks[i].enemies = "";
    i += 1;
 
