@@ -134,20 +134,10 @@ GLOBAL
          INT flags;  // block properties, default 0
          STRING enemies; // enemy wave info in BBEWML
       END
-   END =
-         // --- LEVEL 0
-         "Etherfax - Goliath Sea",  // Name
-         "wld\bbst01.wld",          // WLD path
-         "fpg\bbst01.fpg",          // FPG path
-         15, 21, 23,                // Fog color
-         10, 80,                    // Fog distance
-         1700,                      // Camera Z
-         14992, 5992, 8,            // Area width, height, gap among areas
-         32, 7712,                  // Area X absolute range
-         -200, 200,                 // Area Y relative range
-         1500, 1900;                // Area Z absolute range
+   END
 
-   STRUCT level_rail // info about the current "rail" the camera and player are following, in realtime
+   // Rail: info about the current "rail" the camera and player are following, in realtime
+   STRUCT level_rail
       INT teleport_pxd, INT teleport_pyd; // (G_RES) teleport offset/delta during teleport frame
       // coords
       INT px, INT py, INT pz; // (G_RES) updated every frame with base-px,py,pz
@@ -234,6 +224,9 @@ FUNCTION init();
 BEGIN
 
    log_formatted("[Header]", false);
+
+   log("Loading levels in " + BASE_PATH + LEVEL_DEF_FILE);
+   load(BASE_PATH + LEVEL_DEF_FILE, &levels);
 
    set_mode(SCREEN_RES);
    restore_type = SCREEN_RESTORE;

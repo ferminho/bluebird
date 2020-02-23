@@ -69,7 +69,6 @@ END
 FUNCTION init_level0()
 BEGIN
    lev = &levels[0];
-
    lev.name = "Etherfax - Goliath Sea";
    // RES
    lev.res.wld_path = "wld\bbst01.wld";
@@ -78,8 +77,8 @@ BEGIN
    set_fog_info(lev, 15, 21, 23, 10, 80);
    // COORDS
    lev.coords.camera_z = 1700;
-   set_area_dimensions(lev, 14992, 5992, 8);
-   set_area_ranges(lev, 32, 7712, -200, 200, 1500, 1900);
+   set_area_dimensions(lev, 9992, 5992, 8);
+   set_area_ranges(lev, 32, 5152, -200, 200, 1500, 1900);
    // BLOCKS
    // 000
    lev.blocks[i].areas = "0 0 0 0 0 0 0 0 0 0";
@@ -117,9 +116,9 @@ BEGIN
 END
 ///////////////////////////////////////////////////////////////////////////////////
 FUNCTION set_area_ranges(STRUCT POINTER levels ptr,
-                         WORD abs_x0, WORD abs_x1,
+                         INT abs_x0, INT abs_x1,
                          INT rel_y0, INT rel_y1,
-                         WORD abs_z0, WORD abs_z1)
+                         INT abs_z0, INT abs_z1)
 BEGIN
    ptr.coords.area_x_abs_range[0] = abs_x0;
    ptr.coords.area_x_abs_range[1] = abs_x1;
