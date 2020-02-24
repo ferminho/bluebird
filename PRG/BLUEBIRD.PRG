@@ -59,6 +59,9 @@ CONST
    BIRD_LONG_DISTANCE = 192;
    BIRD_MAX_VEL = 300; // "2D" speed
 
+   // Other ship properties
+   FEN_CAR_SCALING = 80;
+
    // Process priority
    PRIORITY_TIME_MASTER =     max_int;
    PRIORITY_PLAYER_INPUT =     100000;
@@ -152,6 +155,8 @@ GLOBAL
    // Resources: file res
    fpg_level;  // FPG handle of current level WLD
    fpg_bird;  // FPG handle of bird library
+   fpg_flying_enemies;  // FPG handle of flying enemies library
+   fpg_misc;   // FPG handle of misc sprites
    wld_level;  // WLD handle of current level
 
    // Important processes
@@ -348,10 +353,11 @@ BEGIN
    END
 
    lev = new_level;
+   // Common FPGs are loaded and re-processed each level to allow for multiple palettes
+   // (for that, we'd need several pre-paletted FPGs though)
    load_level_resources(new_level);
-   preprocess_angles(fpg_bird, 900, 1, BIRD_SCALING);
-   post_process();
 
+   post_process();
    id_rail_operator = rail_operator();
    id_camera = camera();
    id_player = bird();
@@ -458,6 +464,8 @@ BEGIN
    py = grid_y0 + (area_h * G_RES);
    pz = levels[lev].coords.camera_z * G_RES;
 
+   level_rail.block = 0;
+   level_rail.area =
    level_rail.px = px;
    level_rail.py = py;
    level_rail.pz = pz;
@@ -665,7 +673,23 @@ BEGIN
    fpg_level = load_fpg(BASE_PATH + levels[lev].res.fpg_path);
    wld_level = load_wld(BASE_PATH + levels[lev].res.wld_path, fpg_level);
    fpg_bird = load_fpg(BASE_PATH + "fpg\bird.fpg");
+   fpg_flying_enemies = load_fpg(BASE_PATH + "fpg\fen.fpg");
+   fpg_misc = load_fpg(BASE_PATH + "fpg\misc.fpg");
    log("Loaded resources for level " + itoa(new_level));
+
+   preprocess_resources();
+   log("Preprocessed resources for level " + itoa(new_level));
+END
+//--------------------------------------------
+
+
+//--------------------------------------------
+FUNCTION preprocess_resources();
+//--------------------------------------------
+BEGIN
+
+   preprocess_angles(fpg_bird, 900, 1, BIRD_SCALING);
+   preprocess_angles(fpg_flying_enemies, 900, 1, FEN_CAR_SCALING);
 
 END
 //--------------------------------------------
