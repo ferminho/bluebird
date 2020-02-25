@@ -178,10 +178,8 @@ GLOBAL
    STRUCT input[0]
       INT x;         // -100 to 100
       INT y;         // -100 to 100
-      INT burn_x;    // -1 to 1
-      INT burn_y;    // -1 to 1
       INT throttle;  // -1 to 1
-      INT roll;      // -1 (CCW) to 1 (CW)
+      fire;          // true or false
    END
 
    // Math
@@ -405,15 +403,16 @@ BEGIN
    LOOP
       input[I_PLAYER].x            = 0;
       input[I_PLAYER].y            = 0;
-      input[I_PLAYER].burn_x       = 0;
-      input[I_PLAYER].burn_y       = 0;
       input[I_PLAYER].throttle     = 0;
-      input[I_PLAYER].roll         = 0;
+      input[I_PLAYER].fire         = false;
 
       IF (key(_a)) input[I_PLAYER].x = -100; END
       IF (key(_d)) input[I_PLAYER].x = 100; END
       IF (key(_w)) input[I_PLAYER].y = 100; END
       IF (key(_s)) input[I_PLAYER].y = -100; END
+      IF (key(_q)) input[I_PLAYER].throttle = -1; END
+      IF (key(_e)) input[I_PLAYER].throttle = 1; END
+      IF (key(_space)) input[I_PLAYER].fire = true; END
 
       FRAME;
    END
