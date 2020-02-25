@@ -154,6 +154,13 @@ GLOBAL
       INT min_z, INT max_z;
    END
 
+   // World grid info
+   STRUCT grid
+      INT x0, INT y0, INT x1;
+      INT cell_width, INT cell_height;
+      INT rows, INT columns;
+   END
+
    // Resources: file res
    fpg_level;  // FPG handle of current level WLD
    fpg_bird;  // FPG handle of bird library
@@ -422,7 +429,7 @@ END
 
 
 // ----------------------------------------------------------
-// ------------- GAME ENTITIES
+// ------------- GAME ENTITIES & WORLD
 // ----------------------------------------------------------
 
 
@@ -431,38 +438,19 @@ PROCESS rail_operator();
 //--------------------------------------------
 PRIVATE
 
-   INT area_w, INT area_h, INT area_gap, INT area_x0, INT area_x1;
-
-   INT grid_x0;
-   INT grid_y0;
-   INT grid_x1;
-   INT grid_cell_width;
-   INT grid_cell_height;
-   INT grid_rows;
-   INT grid_columns;
+   INT grid_x0, INT grid_y0, INT grid_x1;
+   INT grid_cell_width, INT grid_cell_height;
+   INT grid_rows, INT grid_columns;
 
    INT rel_min_y, INT rel_max_y;
 
 BEGIN
 
+   action = ACTION_NONE;
    binded_game_status = game_status;
    priority = PRIORITY_RAIL_OPERATOR;
 
-   // cache values
-   area_w = levels[lev].coords.area_width;
-   area_h = levels[lev].coords.area_height;
-   area_gap = levels[lev].coords.area_gap;
-   area_x0 = levels[lev].coords.area_x_abs_range[0];
-   area_x1 = levels[lev].coords.area_x_abs_range[1];
-
-   // calculate the map "grid" coords and dimensions
-   grid_x0 = area_x0 * G_RES;
-   grid_y0 = (area_h * G_RES) / 2;
-   grid_x1 = area_x1 * G_RES;
-   grid_cell_width = (area_w + area_gap) * G_RES;
-   grid_cell_height = (area_h + area_gap) * G_RES;
-   grid_rows = MAX_M8_COORD / grid_cell_height;
-   grid_columns = MAX_M8_COORD / grid_cell_width;
+   calculate_grid_info();
 
    px = grid_x0;
    py = grid_y0 + (area_h * G_RES);
@@ -516,6 +504,43 @@ BEGIN
       FRAME;
    END
 
+END
+//--------------------------------------------
+
+
+//--------------------------------------------
+FUNCTION calculate_grid_info();
+//--------------------------------------------
+PRIVATE
+
+   INT area_w, INT area_h, INT area_gap, INT area_x0, INT area_x1;
+
+BEGIN
+
+   area_w = levels[lev].coords.area_width;
+   area_h = levels[lev].coords.area_height;
+   area_gap = levels[lev].coords.area_gap;
+   area_x0 = levels[lev].coords.area_x_abs_range[0];
+   area_x1 = levels[lev].coords.area_x_abs_range[1];
+
+   // calculate the map "grid" coords and dimensions
+   grid.x0 = area_x0 * G_RES;
+   grid.y0 = (area_h * G_RES) / 2;
+   grid.x1 = area_x1 * G_RES;
+   grid.cell_width = (area_w + area_gap) * G_RES;
+   grid.cell_height = (area_h + area_gap) * G_RES;
+   grid.rows = MAX_M8_COORD / grid.cell_height;
+   grid.columns = MAX_M8_COORD / grid.cell_width;
+
+END
+//--------------------------------------------
+
+
+//--------------------------------------------
+FUNCTION get_new_area();
+//--------------------------------------------
+BEGIN
+   // TODO: here
 END
 //--------------------------------------------
 
