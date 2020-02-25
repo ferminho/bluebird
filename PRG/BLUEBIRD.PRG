@@ -47,6 +47,10 @@ CONST
    CAMERA_ACCEL = 100;  // units / s^2
    MAX_CAMERA_VEL = 300;// units / s
 
+   // Dynamic graph definitions
+   ENTITY_ANGLES = 32;
+   ENTITY_ANGLE_STEP = 360000 / ENTITY_ANGLES;
+
    // Bird properties
    BIRD_SCALING = 15;   // %
    BIRD_2D_SIZE = 45;   // size of 2D sprite (ship itself, not container map)
@@ -58,9 +62,12 @@ CONST
    BIRD_STD_DISTANCE = 160;
    BIRD_LONG_DISTANCE = 192;
    BIRD_MAX_VEL = 300; // "2D" speed
+   BIRD_MAIN_GRAPH = 1;
 
    // Other ship properties
    FEN_CAR_SCALING = 80;
+   FEN_CAR_FRONT_GRAPH = 1;
+   FEN_CAR_BACK_GRAPH = 1 + ENTITY_ANGLES;
 
    // Process priority
    PRIORITY_TIME_MASTER =     max_int;
@@ -79,11 +86,6 @@ CONST
 
    // Effects
    FADE_SPEED = 10; // standard fade speed for transitions
-
-   // Dynamic graph definitions
-   ENTITY_ANGLES = 32;
-   ENTITY_ANGLE_STEP = 360000 / ENTITY_ANGLES;
-   PLAYER_SHIP_MAIN = 1;
 
    // Input
    I_PLAYER = 0;
@@ -158,6 +160,9 @@ GLOBAL
    fpg_flying_enemies;  // FPG handle of flying enemies library
    fpg_misc;   // FPG handle of misc sprites
    wld_level;  // WLD handle of current level
+
+   // Resources: enemy base graphs
+   INT base_graphs[1];
 
    // Important processes
    id_rail_operator;
@@ -612,7 +617,7 @@ BEGIN
 
    ctype = c_m8;
    file = fpg_bird;
-   base_graph = 1;
+   base_graph = BIRD_MAIN_GRAPH;
 
    py = level_rail.py;
    pz = level_rail.pz - BIRD_HALF_2D_SIZE;
@@ -688,8 +693,9 @@ FUNCTION preprocess_resources();
 //--------------------------------------------
 BEGIN
 
-   preprocess_angles(fpg_bird, 900, 1, BIRD_SCALING);
-   preprocess_angles(fpg_flying_enemies, 900, 1, FEN_CAR_SCALING);
+   preprocess_angles(fpg_bird, 900, BIRD_MAIN_GRAPH, BIRD_SCALING);
+   preprocess_angles(fpg_flying_enemies, 900, FEN_CAR_FRONT_GRAPH, FEN_CAR_SCALING);
+   preprocess_angles(fpg_flying_enemies, 901, FEN_CAR_BACK_GRAPH, FEN_CAR_SCALING);
 
 END
 //--------------------------------------------
