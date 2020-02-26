@@ -101,7 +101,8 @@ CONST
    LEVEL_DEF_FILE = "levels.dat";
    LEVEL_MAX_LEVELS = 10;
    LEVEL_MAX_BLOCKS = 100;
-   BLOCK_FLAG_CYCLE_WHILE_ENEMIES = 1;
+   BLOCK_FLAG_REPEAT_WHILE_ENEMIES = 1; // obvious
+   BLOCK_FLAG_FULL_CYCLES = 2;          // if repeating, never finish mid-cycle, always complete cycle
 
 GLOBAL
 
@@ -135,20 +136,25 @@ GLOBAL
       // Blocks definition include the sucession of areas, as well as enemy waves
       INT blocks_count;
       STRUCT blocks[LEVEL_MAX_BLOCKS]
-         STRING areas; // areas in space-delimited string (e.g. "0 12 1 1 3 1 0"), "" = empty
+         STRING areas; // areas in 2-digit space-delimited string (e.g. "00 12 01 01 03"), "" = empty
          INT flags;  // block properties, default 0
-         STRING enemies; // enemy wave info in BBEWML
+         STRING enemies; // enemy wave info in EDBBSL
       END
    END
 
    // Rail: info about the current "rail" the camera and player are following, in realtime
    STRUCT level_rail
       INT teleport_pxd, INT teleport_pyd; // (G_RES) teleport offset/delta during teleport frame
-      // coords
+      // Coords
       INT px, INT py, INT pz; // (G_RES) updated every frame with base-px,py,pz
       INT x, INT y, INT z; // in simple res
-      // position in world
-      INT block, INT area;
+      // Position within rail blocks defined in level
+      // Block: current block
+      // Block_cycle: current cycle withing block (0..n), i.e. number of times it has been repeated
+      //    Makes sense only when a repeat-flag is active
+      // Block_area: current area INDEX within block (first = 0, second = 1...)
+      // Area: current area (area id, from 0 to n depending on grid size)
+      INT block, INT block_cycle, INT block_area, INT area;
       // Limits of the flyable zone in G_RES
       INT min_y, INT max_y;
       INT min_z, INT max_z;
@@ -452,23 +458,24 @@ BEGIN
 
    calculate_grid_info();
 
-   px = grid_x0;
-   py = grid_y0 + (area_h * G_RES);
+   // atm this won't change, all levels keep the same rail Z
    pz = levels[lev].coords.camera_z * G_RES;
 
-   level_rail.block = 0;
-   level_rail.area =
-   level_rail.px = px;
-   level_rail.py = py;
-   level_rail.pz = pz;
-   level_rail.x = px / G_RES;
-   level_rail.y = py / G_RES;
-   level_rail.z = pz / G_RES;
+   // first block/area teleport
+   level_rail.block = -1;
+   level_rail.block_area = -1;
+   level_rail.px = 0;
+   level_rail.py = 0;
+   advance_rail_block_area();
+   px += level_rail.teleport_pxd;
+   py += level_rail.teleport_pyd;
+   level_rail.teleport_pxd = 0; // don't propagate teleport info this time
+   level_rail.teleport_pyd = 0;
 
    rel_min_y = levels[lev].coords.area_y_rel_range[0] * G_RES;
    rel_max_y = levels[lev].coords.area_y_rel_range[1] * G_RES;
-   level_rail.min_y = level_rail.py + rel_min_y;
-   level_rail.max_y = level_rail.py + rel_max_y;
+   level_rail.min_y = py + rel_min_y;
+   level_rail.max_y = py + rel_max_y;
    level_rail.min_z = levels[lev].coords.area_z_abs_range[0] * G_RES;
    level_rail.max_z = levels[lev].coords.area_z_abs_range[1] * G_RES;
 
@@ -481,15 +488,13 @@ BEGIN
 
          IF (px >= grid_x1)
             // CHANGE AREA
-            level_rail.teleport_pxd = -(grid_x1 - grid_x0);
-            level_rail.teleport_pyd = 0;
+            advance_rail_block_area();
 
             px += level_rail.teleport_pxd;
             py += level_rail.teleport_pyd;
 
-            level_rail.py += level_rail.teleport_pyd;
-            level_rail.min_y = level_rail.py + rel_min_y;
-            level_rail.max_y = level_rail.py + rel_max_y;
+            level_rail.min_y = py + rel_min_y;
+            level_rail.max_y = py + rel_max_y;
          ELSE
             level_rail.teleport_pxd = 0;
             level_rail.teleport_pyd = 0;
@@ -497,6 +502,8 @@ BEGIN
       END
 
       level_rail.px = px;
+      level_rail.py = py;
+      level_rail.pz = pz;
 
       level_rail.x = level_rail.px / G_RES;
       level_rail.y = level_rail.py / G_RES;
@@ -537,10 +544,86 @@ END
 
 
 //--------------------------------------------
-FUNCTION get_new_area();
+FUNCTION advance_rail_block_area();
+//--------------------------------------------
+// This function knows about parsing block area definitions
+PRIVATE
+
+   STRING str;
+   INT str_length;
+   is_first_cycle, is_last_area, enemies_alive, flag_rwe, flag_fc;
+   INT grid_i, INT grid_j; // position within grid matrix (i, j) i = row, j = col
+   INT y_offset;  // current rail Y offset
+
+BEGIN
+
+   IF (level_rail.block == -1)
+      // First block/area
+      y_offset = 0;
+      level_rail.block = 0;
+      level_rail.block_area = 0;
+      level_rail.block_cycle = 0;
+   ELSE
+      y_offset = id_camera.py - level_rail.py;
+      strcpy(str, levels[lev].blocks[level_rail.block].areas);
+      str_length = strlen(str);
+      is_first_cycle = level_rail.block_cycle == 0;
+      is_last_area = level_rail.block_area == ((str_length / 3) - 1);
+      enemies_alive = are_enemies_alive();
+      flags = levels[lev].blocks[level_rail.block].flags;
+      flag_rwe = (flags & BLOCK_FLAG_REPEAT_WHILE_ENEMIES) == BLOCK_FLAG_REPEAT_WHILE_ENEMIES;
+      flag_fc = (flags & BLOCK_FLAG_FULL_CYCLES) == BLOCK_FLAG_FULL_CYCLES;
+
+      IF ((is_last_area AND NOT (flag_rwe AND enemies_alive))
+          OR (NOT is_last_area AND NOT is_first_cycle AND NOT flag_fc AND NOT enemies_alive))
+         // Jump to next block
+         level_rail.block += 1;
+         level_rail.block_area = 0;
+         level_rail.block_cycle = 0;
+      ELSE IF (is_last_area AND flag_rwe AND enemies_alive)
+         // Repeat another cycle
+         level_rail.block_area = 0;
+         level_rail.block_cycle += 1;
+      ELSE
+         // Advance 1 block area
+         level_rail.block_area += 1;
+      END END
+   END
+
+   // Parse area
+   strcpy(str, levels[lev].blocks[level_rail.block].areas);
+   str_length = strlen(str);
+   strdel(str, level_rail.block_area * 3, str_length - (level_rail.block_area * 3) - 2);
+   level_rail.area = calculate(str);
+
+   // Calculate target coords
+   grid_j = level_rail.area / grid.rows;
+   grid_i = level_rail.area MOD grid.rows;
+   IF (grid_j >= grid.rows)
+      log("ERROR: tried to jump to grid (" + itoa(grid_i) + ", " + itoa(grid_j) + ")");
+      log("  Max: (" + itoa(grid.rows - 1) + ", " + itoa(grid.columns - 1) + ")");
+      log("  Reading: block " + itoa(level_rail.block)
+          + " block_area " + itoa(level_rail.block_area)
+          + " area " + itoa(level_rail.area));
+      exit("Grid jump out of range", -1);
+   END
+   x = grid.x0 + (grid_j * grid.cell_width); // in G_RES
+   y = grid.y0 + (grid_i * grid.cell_height) + y_offset; // in G_RES
+
+   // jump to the candidate block/area
+   level_rail.teleport_pxd = x - level_rail.px;
+   level_rail.teleport_pyd = y - level_rail.py;
+
+END
+//--------------------------------------------
+
+
+//--------------------------------------------
+FUNCTION are_enemies_alive();
 //--------------------------------------------
 BEGIN
-   // TODO: here
+   // TODO: add all enemy types
+   RETURN(get_id(TYPE flying_enemy));
 END
 //--------------------------------------------
 
@@ -684,6 +767,15 @@ BEGIN
       FRAME;
    END
 
+END
+//--------------------------------------------
+
+
+//--------------------------------------------
+PROCESS flying_enemy();
+//--------------------------------------------
+BEGIN
+   // TODO
 END
 //--------------------------------------------
 

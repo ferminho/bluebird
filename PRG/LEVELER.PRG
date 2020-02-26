@@ -43,7 +43,7 @@ GLOBAL
       // Blocks definition include the sucession of areas, as well as enemy waves
       INT blocks_count;
       STRUCT blocks[LEVEL_MAX_BLOCKS]
-         STRING areas; // areas in space-delimited string (e.g. "0 12 1 1 3 1 0"), "" = empty
+         STRING areas; // areas in 2-digit space-delimited string (e.g. "00 12 01 01 03"), "" = empty
          INT flags;  // block properties, default 0
          STRING enemies; // enemy wave info in BBEWML
       END
@@ -81,9 +81,11 @@ BEGIN
    set_area_ranges(lev, 32, 6432, -300, 300, 1500, 1900);
    // BLOCKS
    // 000
-   lev.blocks[i].areas = "1 0 1 1 1 1 1 1 1 1";
+   lev.blocks[i].areas = "01";
    lev.blocks[i].enemies = "";
    i += 1;
+   lev.blocks[i].areas = "00 01 00 00 01";
+   lev.blocks[i].enemies = "";
 
    set_block_count(lev);
 END
