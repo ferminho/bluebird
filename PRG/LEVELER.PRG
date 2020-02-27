@@ -79,7 +79,7 @@ BEGIN
    // COORDS
    lev.coords.camera_z = 1700;
    set_area_dimensions(lev, 9992, 5880, 8);
-   set_area_ranges(lev, 32, 6432, -300, 300, 1500, 1900);
+   set_area_ranges(lev, 32, 6432, -350, 350, 1500, 1900);
    // BLOCKS
    // 000
    lev.blocks[i].areas = "01";
