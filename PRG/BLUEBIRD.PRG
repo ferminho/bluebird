@@ -136,7 +136,8 @@ GLOBAL
       // Blocks definition include the sucession of areas, as well as enemy waves
       INT blocks_count;
       STRUCT blocks[LEVEL_MAX_BLOCKS]
-         STRING areas; // areas in 2-digit space-delimited string (e.g. "00 12 01 01 03"), "" = empty
+         STRING areas; // areas in 2-digit space-delimited string (e.g. "00 12 01 01 03"), "" = empty block
+         // watch out, do not add starting or trailing spaces. Don't or don't. There is no trim.
          INT flags;  // block properties, default 0
          STRING enemies; // enemy wave info in EDBBSL
       END
@@ -444,10 +445,6 @@ PROCESS rail_operator();
 //--------------------------------------------
 PRIVATE
 
-   INT grid_x0, INT grid_y0, INT grid_x1;
-   INT grid_cell_width, INT grid_cell_height;
-   INT grid_rows, INT grid_columns;
-
    INT rel_min_y, INT rel_max_y;
 
 BEGIN
@@ -486,7 +483,7 @@ BEGIN
       IF (action == ACTION_ACTIVATE_RAIL)
          px += vx * delta;
 
-         IF (px >= grid_x1)
+         IF (px >= grid.x1)
             // CHANGE AREA
             advance_rail_block_area();
 
@@ -553,19 +550,17 @@ PRIVATE
    INT str_length;
    is_first_cycle, is_last_area, enemies_alive, flag_rwe, flag_fc;
    INT grid_i, INT grid_j; // position within grid matrix (i, j) i = row, j = col
-   INT y_offset;  // current rail Y offset
 
 BEGIN
 
    IF (level_rail.block == -1)
       // First block/area
-      y_offset = 0;
       level_rail.block = 0;
       level_rail.block_area = 0;
       level_rail.block_cycle = 0;
    ELSE
-      y_offset = id_camera.py - level_rail.py;
       strcpy(str, levels[lev].blocks[level_rail.block].areas);
+      str += " ";
       str_length = strlen(str);
       is_first_cycle = level_rail.block_cycle == 0;
       is_last_area = level_rail.block_area == ((str_length / 3) - 1);
@@ -573,7 +568,6 @@ BEGIN
       flags = levels[lev].blocks[level_rail.block].flags;
       flag_rwe = (flags & BLOCK_FLAG_REPEAT_WHILE_ENEMIES) == BLOCK_FLAG_REPEAT_WHILE_ENEMIES;
       flag_fc = (flags & BLOCK_FLAG_FULL_CYCLES) == BLOCK_FLAG_FULL_CYCLES;
-
       IF ((is_last_area AND NOT (flag_rwe AND enemies_alive))
           OR (NOT is_last_area AND NOT is_first_cycle AND NOT flag_fc AND NOT enemies_alive))
          // Jump to next block
@@ -592,6 +586,7 @@ BEGIN
 
    // Parse area
    strcpy(str, levels[lev].blocks[level_rail.block].areas);
+   str += " "; // one trailing space to make it multiple of 3 chars
    str_length = strlen(str);
    strdel(str, level_rail.block_area * 3, str_length - (level_rail.block_area * 3) - 2);
    level_rail.area = calculate(str);
@@ -608,7 +603,7 @@ BEGIN
       exit("Grid jump out of range", -1);
    END
    x = grid.x0 + (grid_j * grid.cell_width); // in G_RES
-   y = grid.y0 + (grid_i * grid.cell_height) + y_offset; // in G_RES
+   y = grid.y0 + (grid_i * grid.cell_height); // in G_RES
 
    // jump to the candidate block/area
    level_rail.teleport_pxd = x - level_rail.px;
@@ -673,6 +668,7 @@ BEGIN
    WHILE (game_status == binded_game_status)
 
       px = level_rail.px;
+      py += level_rail.teleport_pyd;
       target_y = level_rail.py;
       target_z = level_rail.pz;
 
@@ -734,6 +730,7 @@ BEGIN
    WHILE (game_status == binded_game_status)
 
       px = level_rail.px + (BIRD_STD_DISTANCE * G_RES);
+      py += level_rail.teleport_pyd;
 
       vy += (input[I_PLAYER].x * 5 * delta) / G_RES;
       vz += (input[I_PLAYER].y * 5 * delta) / G_RES;
