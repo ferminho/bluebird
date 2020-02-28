@@ -1007,6 +1007,15 @@ BEGIN
    write    (0, 0 , 16, 0, "CZ");
    write_int(0, 20, 16, 0, &id_camera.z);
 
+   write    (0, 0 , 32, 0, "FPS");
+   write_int(0, 20, 32, 0, &fps);
+   write    (0, 0 , 40, 0, "TS");
+   write_int(0, 20, 40, 0, &time_speed);
+   write    (0, 0 , 48, 0, "d");
+   write_int(0, 20, 48, 0, &delta);
+   write    (0, 0 , 56, 0, "GT");
+   write_int(0, 20, 56, 0, &global_time);
+
    write    (0, 270, 0 , 0, "PX");
    write_int(0, 290, 0 , 0, &id_player.x);
    write    (0, 270, 8 , 0, "PY");
@@ -1021,15 +1030,14 @@ BEGIN
    write    (0, 270, 40, 0, "PVZ");
    write_int(0, 290, 40, 0, &id_player.vz);
 
-
-   write    (0, 0 , 32, 0, "FPS");
-   write_int(0, 20, 32, 0, &fps);
-   write    (0, 0 , 40, 0, "TS");
-   write_int(0, 20, 40, 0, &time_speed);
-   write    (0, 0 , 48, 0, "d");
-   write_int(0, 20, 48, 0, &delta);
-   write    (0, 0 , 56, 0, "GT");
-   write_int(0, 20, 56, 0, &global_time);
+   write    (0, 270, 48, 0, "BLK");
+   write_int(0, 290, 48, 0, &level_rail.block);
+   write    (0, 270, 56, 0, "CYC");
+   write_int(0, 290, 56, 0, &level_rail.block_cycle);
+   write    (0, 270, 64, 0, "B_A");
+   write_int(0, 290, 64, 0, &level_rail.block_area);
+   write    (0, 270, 72, 0, "AR");
+   write_int(0, 290, 72, 0, &level_rail.area);
 
 END
 //--------------------------------------------
