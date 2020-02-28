@@ -198,8 +198,8 @@ GLOBAL
    END
 
    // Math
-   WORD psin[3599];
-   WORD pcos[3599];
+   INT psin[3599];
+   INT pcos[3599];
    INT ptan[3599];
    INT half_hfov_tan; // tan of half the HFOV
    INT half_vfov_tan; // tan of half the VFOV
