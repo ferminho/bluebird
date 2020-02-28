@@ -1020,22 +1020,24 @@ BEGIN
    write_int(0, 290, 8 , 0, &id_player.y);
    write    (0, 270, 16, 0, "PZ");
    write_int(0, 290, 16, 0, &id_player.z);
+   write    (0, 270, 24, 0, "ANG");
+   write_int(0, 290, 24, 0, &id_player.rangle);
 
-   write    (0, 270, 24 , 0, "PVX");
-   write_int(0, 290, 24, 0, &id_player.vx);
-   write    (0, 270, 32, 0, "PVY");
-   write_int(0, 290, 32, 0, &id_player.vy);
-   write    (0, 270, 40, 0, "PVZ");
-   write_int(0, 290, 40, 0, &id_player.vz);
+   write    (0, 270, 40, 0, "PVX");
+   write_int(0, 290, 40, 0, &id_player.vx);
+   write    (0, 270, 48, 0, "PVY");
+   write_int(0, 290, 48, 0, &id_player.vy);
+   write    (0, 270, 56, 0, "PVZ");
+   write_int(0, 290, 56, 0, &id_player.vz);
 
-   write    (0, 270, 48, 0, "BLK");
-   write_int(0, 290, 48, 0, &level_rail.block);
-   write    (0, 270, 56, 0, "CYC");
-   write_int(0, 290, 56, 0, &level_rail.block_cycle);
-   write    (0, 270, 64, 0, "B_A");
-   write_int(0, 290, 64, 0, &level_rail.block_area);
-   write    (0, 270, 72, 0, "AR");
-   write_int(0, 290, 72, 0, &level_rail.area);
+   write    (0, 270, 72, 0, "BLK");
+   write_int(0, 290, 72, 0, &level_rail.block);
+   write    (0, 270, 80, 0, "CYC");
+   write_int(0, 290, 80, 0, &level_rail.block_cycle);
+   write    (0, 270, 88, 0, "B_A");
+   write_int(0, 290, 88, 0, &level_rail.block_area);
+   write    (0, 270, 96, 0, "AR");
+   write_int(0, 290, 96, 0, &level_rail.area);
 
 END
 //--------------------------------------------
