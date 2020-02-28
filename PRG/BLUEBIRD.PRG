@@ -63,6 +63,8 @@ CONST
    BIRD_LONG_DISTANCE = 192;
    BIRD_MAX_VEL = 400; // "2D" speed
    BIRD_MAIN_GRAPH = 1;
+   BIRD_AIM_DIST_X = 150;
+   BIRD_MAX_AIM_ANGLE = 45000; // angle at which to shoot at max 2D speed
 
    // Other ship properties
    FEN_CAR_SCALING = 80;
@@ -74,6 +76,8 @@ CONST
    PRIORITY_PLAYER_INPUT =     100000;
    PRIORITY_RAIL_OPERATOR =     90000;
    PRIORITY_BIRD =               1000;
+   PRIORITY_BIRD_SIGHTS =         900;
+   PRIORITY_BIRD_VULKANS =        800;
    PRIORITY_CAMERA =          -100000;
 
    // Mode8
@@ -94,9 +98,12 @@ CONST
    // Action system
    ACTION_NONE = 0;
    // Camera actions
-   ACTION_SPECTATE_PLAYER = 1;
+   ACTION_SPECTATE_PLAYER = 10;
    // Rail actions
-   ACTION_ACTIVATE_RAIL = 2;
+   ACTION_ACTIVATE_RAIL = 20;
+   // Bird actions
+   // Bird children actions
+   ACTION_FIRE = 150;
 
    // Level definition constants
    LEVEL_DEF_FILE = "levels.dat";
@@ -714,6 +721,8 @@ PRIVATE
    INT vel_mod;
    INT clamp_factor;
    INT max_rangle;
+   sights, vulkan_l, vulkan_r;
+   INT aim_y, INT aim_z; // aim angles in G_RES
 
 BEGIN
 
@@ -724,16 +733,22 @@ BEGIN
    file = fpg_bird;
    base_graph = BIRD_MAIN_GRAPH;
 
+   px = level_rail.px + (BIRD_STD_DISTANCE * G_RES);
    py = level_rail.py;
    pz = level_rail.pz - BIRD_HALF_2D_SIZE;
    radius = BIRD_HALF_2D_SIZE;
    height = BIRD_2D_SIZE;
+
+   sights = bird_sights();
+   vulkan_l = bird_vulkan(sights, 2500, -BIRD_HALF_2D_SIZE * 500, -BIRD_HALF_2D_SIZE * 500);
+   vulkan_r = bird_vulkan(sights, 2500, BIRD_HALF_2D_SIZE * 500, -BIRD_HALF_2D_SIZE * 500);
 
    WHILE (game_status == binded_game_status)
 
       px = level_rail.px + (BIRD_STD_DISTANCE * G_RES);
       py += level_rail.teleport_pyd;
 
+      // Movement
       vy += (input[I_PLAYER].x * 7 * delta) / G_RES;
       vz += (input[I_PLAYER].y * 7 * delta) / G_RES;
       vel_mod = sqrt(vy * vy + vz * vz);
@@ -752,9 +767,25 @@ BEGIN
       IF (pz < level_rail.min_z) pz = level_rail.min_z; vz = 0; END
       IF (pz > level_rail.max_z) pz = level_rail.max_z; vz = 0; END
 
+      // Rolling
       max_rangle = (100000 * vel_mod) / BIRD_MAX_VEL;
       rangle = rangle - (vy >> 1) * delta;
       rangle = clamp(rangle, -max_rangle, max_rangle + 10000);
+
+      // Aiming
+      aim_y = (BIRD_MAX_AIM_ANGLE * vy) / BIRD_MAX_VEL;
+      aim_z = (BIRD_MAX_AIM_ANGLE * vz) / BIRD_MAX_VEL;
+
+
+      // Shooting
+      IF (input[I_PLAYER].fire)
+         vulkan_l.action = ACTION_FIRE;
+         vulkan_r.action = ACTION_FIRE;
+      ELSE
+         vulkan_l.action = ACTION_NONE;
+         vulkan_r.action = ACTION_NONE;
+      END
+
 
       x = px / G_RES;
       y = py / G_RES;
@@ -764,6 +795,68 @@ BEGIN
       FRAME;
    END
 
+END
+//--------------------------------------------
+
+
+//--------------------------------------------
+PROCESS bird_sights();
+//--------------------------------------------
+BEGIN
+
+   priority = PRIORITY_BIRD_SIGHTS;
+   binded_game_status = game_status;
+   ctype = c_m8;
+   file = fpg_misc;
+   graph = 50;
+   flags = 4;
+
+   WHILE (game_status == binded_game_status)
+
+      x = px / G_RES;
+      y = py / G_RES;
+      z = (pz / G_RES) - 10; // m8 positioning correction (half graph height)
+      FRAME;
+   END
+END
+//--------------------------------------------
+
+
+//--------------------------------------------
+PROCESS bird_vulkan(sights, INT pxd, INT pyd, INT pzd);
+//--------------------------------------------
+BEGIN
+
+   priority = PRIORITY_BIRD_VULKANS;
+   binded_game_status = game_status;
+   ctype = c_m8;
+   file = fpg_misc;
+
+   WHILE (game_status == binded_game_status)
+      angle = father.rangle / G_TO_TRIGO_DIV; // trick: it will be almost normalized
+      IF (angle < 0) angle += 3600; END      // but it could be negative
+      px = father.px + pxd;
+      py = father.py;
+      pz = father.pz + (BIRD_HALF_2D_SIZE * G_RES);
+      py += (pyd * pcos[angle] - pzd * psin[angle]) / G_RES;
+      pz += (pyd * psin[angle] + pzd * pcos[angle]) / G_RES;
+
+      x = px / G_RES;
+      y = py / G_RES;
+      z = (pz / G_RES) - 5; // m8 positioning correction (half graph height)
+
+      IF (action == ACTION_FIRE)
+         IF (rand(1, 100) <= 20)
+            graph = 60 + rand(0, 299) / 100;
+         ELSE
+            graph = 0;
+         END
+      ELSE
+         graph = 0;
+      END
+
+      FRAME;
+   END
 END
 //--------------------------------------------
 
