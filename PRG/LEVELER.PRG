@@ -75,7 +75,7 @@ BEGIN
    lev.res.wld_path = "wld\bbst01.wld";
    lev.res.fpg_path = "fpg\bbst01.fpg";
    // VISUALS
-   set_fog_info(lev, 15, 21, 23, 10, 80);
+   set_fog_info(lev, 6, 5, 17, 10, 80);
    // COORDS
    lev.coords.camera_z = 1700;
    set_area_dimensions(lev, 9992, 5880, 8);
@@ -100,12 +100,12 @@ END
 
 ///////////////////////////////////////////////////////////////////////////////////
 FUNCTION set_fog_info(STRUCT POINTER levels ptr,
-                      BYTE r, BYTE g, BYTE b,
+                      BYTE r64, BYTE g64, BYTE b64,
                       BYTE init_dist, BYTE end_dist)
 BEGIN
-   ptr.visual.fog_color[0] = r;
-   ptr.visual.fog_color[1] = g;
-   ptr.visual.fog_color[2] = b;
+   ptr.visual.fog_color[0] = (r64 * 100) / 64;
+   ptr.visual.fog_color[1] = (g64 * 100) / 64;
+   ptr.visual.fog_color[2] = (b64 * 100) / 64;
    ptr.visual.fog_distance[0] = init_dist;
    ptr.visual.fog_distance[1] = end_dist;
 END
