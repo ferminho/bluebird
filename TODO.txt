@@ -1,0 +1,2 @@
+- Do not move camera - instead, point the camera view. This way, the rail is totally fixed and camera should never collide. 
+Also we'd get a nice perspective for shooting etc.
