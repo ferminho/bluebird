@@ -61,7 +61,7 @@ CONST
    BIRD_CLOSE_DISTANCE = 128;
    BIRD_STD_DISTANCE = 160;
    BIRD_LONG_DISTANCE = 192;
-   BIRD_MAX_VEL = 300; // "2D" speed
+   BIRD_MAX_VEL = 400; // "2D" speed
    BIRD_MAIN_GRAPH = 1;
 
    // Other ship properties
@@ -734,10 +734,8 @@ BEGIN
       px = level_rail.px + (BIRD_STD_DISTANCE * G_RES);
       py += level_rail.teleport_pyd;
 
-      vy += (input[I_PLAYER].x * 5 * delta) / G_RES;
-      vz += (input[I_PLAYER].y * 5 * delta) / G_RES;
-      vy = clamp(vy, -BIRD_MAX_VEL, BIRD_MAX_VEL);
-      vz = clamp(vz, -BIRD_MAX_VEL, BIRD_MAX_VEL);
+      vy += (input[I_PLAYER].x * 7 * delta) / G_RES;
+      vz += (input[I_PLAYER].y * 7 * delta) / G_RES;
       vel_mod = sqrt(vy * vy + vz * vz);
       IF (vel_mod > BIRD_MAX_VEL)
          clamp_factor = (BIRD_MAX_VEL * G_RES) / vel_mod;
