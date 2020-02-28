@@ -73,6 +73,7 @@ CONST
    PRIORITY_TIME_MASTER =     max_int;
    PRIORITY_PLAYER_INPUT =     100000;
    PRIORITY_RAIL_OPERATOR =     90000;
+   PRIORITY_BIRD =               1000;
    PRIORITY_CAMERA =          -100000;
 
    // Mode8
@@ -716,6 +717,7 @@ PRIVATE
 
 BEGIN
 
+   priority = PRIORITY_BIRD;
    binded_game_status = game_status;
 
    ctype = c_m8;
