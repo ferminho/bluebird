@@ -63,8 +63,8 @@ CONST
    BIRD_LONG_DISTANCE = 192;
    BIRD_MAX_VEL = 400; // "2D" speed
    BIRD_MAIN_GRAPH = 1;
-   BIRD_AIM_DIST_X = 150;
-   BIRD_MAX_AIM_ANGLE = 45000; // angle at which to shoot at max 2D speed
+   BIRD_AIM_DIST_X = 25000;
+   BIRD_MAX_AIM_ANGLE = 600; // angle (TRIGO RES) at which to shoot at max 2D speed
 
    // Other ship properties
    FEN_CAR_SCALING = 80;
@@ -722,7 +722,7 @@ PRIVATE
    INT clamp_factor;
    INT max_rangle;
    sights, vulkan_l, vulkan_r;
-   INT aim_y, INT aim_z; // aim angles in G_RES
+   INT aim_angle_y, INT aim_angle_z; // aim angles in G_RES
 
 BEGIN
 
@@ -773,9 +773,15 @@ BEGIN
       rangle = clamp(rangle, -max_rangle, max_rangle + 10000);
 
       // Aiming
-      aim_y = (BIRD_MAX_AIM_ANGLE * vy) / BIRD_MAX_VEL;
-      aim_z = (BIRD_MAX_AIM_ANGLE * vz) / BIRD_MAX_VEL;
-
+      aim_angle_y = (BIRD_MAX_AIM_ANGLE * vy) / BIRD_MAX_VEL;
+      IF (aim_angle_y < 0) aim_angle_y += 3600; END
+      aim_angle_z = (BIRD_MAX_AIM_ANGLE * vz) / BIRD_MAX_VEL;
+      IF (aim_angle_z < 0) aim_angle_z += 3600; END
+      sights.px = px + BIRD_AIM_DIST_X;
+      sights.py = py;
+      sights.py += (BIRD_AIM_DIST_X * psin[aim_angle_y]) / G_RES;
+      sights.pz = pz + BIRD_HALF_2D_SIZE * G_RES;
+      sights.pz += (BIRD_AIM_DIST_X * psin[aim_angle_z]) / G_RES;
 
       // Shooting
       IF (input[I_PLAYER].fire)
@@ -785,7 +791,6 @@ BEGIN
          vulkan_l.action = ACTION_NONE;
          vulkan_r.action = ACTION_NONE;
       END
-
 
       x = px / G_RES;
       y = py / G_RES;
