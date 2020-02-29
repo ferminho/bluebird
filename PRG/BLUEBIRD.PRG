@@ -65,6 +65,9 @@ CONST
    BIRD_MAIN_GRAPH = 1;
    BIRD_AIM_DIST_X = 25000;
    BIRD_MAX_AIM_ANGLE = 600; // angle (TRIGO RES) at which to shoot at max 2D speed
+   BIRD_FIRE_VULKAN_ACCEL = 2000; // in 0.5s it will be rolling at 1000 rps (firing speed)
+   BIRD_FIRE_VULKAN_DECCEL = 1000; // when at 1000 rps, in 1s it will stop rolling
+   BIRD_FIRE_INTERVAL = 125; // 8 bullets x 2 vulkans = 16 bullets per second!
 
    // Other ship properties
    FEN_CAR_SCALING = 80;
@@ -78,6 +81,7 @@ CONST
    PRIORITY_BIRD =               1000;
    PRIORITY_BIRD_SIGHTS =         900;
    PRIORITY_BIRD_VULKANS =        800;
+   PRIORITY_BIRD_SHOT =           100;
    PRIORITY_CAMERA =          -100000;
 
    // Mode8
@@ -830,6 +834,13 @@ END
 //--------------------------------------------
 PROCESS bird_vulkan(sights, INT pxd, INT pyd, INT pzd);
 //--------------------------------------------
+PRIVATE
+
+   INT next_bullet_time = -1;
+   INT accel;
+   INT rolling_speed = 0; // 0 to 1 * G_RES
+   INT shown_frames_left;
+
 BEGIN
 
    priority = PRIORITY_BIRD_VULKANS;
@@ -838,6 +849,12 @@ BEGIN
    file = fpg_misc;
 
    WHILE (game_status == binded_game_status)
+      IF (shown_frames_left == 0)
+         graph = 0;
+      ELSE
+         shown_frames_left --;
+      END
+
       angle = father.rangle / G_TO_TRIGO_DIV; // trick: it will be almost normalized
       IF (angle < 0) angle += 3600; END      // but it could be negative
       px = father.px + pxd;
@@ -851,15 +868,57 @@ BEGIN
       z = (pz / G_RES) - 5; // m8 positioning correction (half graph height)
 
       IF (action == ACTION_FIRE)
-         IF (rand(1, 100) <= 20)
-            graph = 60 + rand(0, 299) / 100;
-         ELSE
-            graph = 0;
+         accel = rand((BIRD_FIRE_VULKAN_ACCEL * 50) / 100, BIRD_FIRE_VULKAN_ACCEL);
+         rolling_speed += (accel * delta) / G_RES;
+         IF (rolling_speed >= 1000)
+            rolling_speed = 1000;
+            IF (next_bullet_time == -1 OR global_time >= next_bullet_time)
+               IF (rand(1, 100) <= 75)
+                  graph = 60 + rand(0, 299) / 100;
+                  shown_frames_left = rand(20, 99) / 20;
+               END
+               bird_shot(px, py, pz, 5000, 0, 0);
+               next_bullet_time = global_time + BIRD_FIRE_INTERVAL;
+            END
          END
+
       ELSE
-         graph = 0;
+         rolling_speed -= (BIRD_FIRE_VULKAN_DECCEL * delta) / G_RES;
+         IF (rolling_speed <= 0)
+            rolling_speed = 0;
+            next_bullet_time = -1;
+         END
+
       END
 
+      FRAME;
+   END
+END
+//--------------------------------------------
+
+
+//--------------------------------------------
+PROCESS bird_shot(INT px, INT py, INT pz, INT vx, INT vy, INT vz);
+//--------------------------------------------
+BEGIN
+
+   priority = PRIORITY_BIRD_SHOT;
+   binded_game_status = game_status;
+   ctype = c_m8;
+   file = fpg_misc;
+   graph = 70;
+
+   WHILE (game_status == binded_game_status
+          AND abs(px - father.px) < 2000000
+          AND m8_wall < 0)
+
+      px += (level_rail.teleport_pxd) + vx * delta;
+      py += (level_rail.teleport_pyd) + vy * delta;
+      pz += vz * delta;
+
+      x = px / G_RES;
+      y = py / G_RES;
+      z = (pz / G_RES) - 2; // m8 positioning correction (half graph height)
       FRAME;
    END
 END
