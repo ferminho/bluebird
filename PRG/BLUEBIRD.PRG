@@ -877,7 +877,10 @@ BEGIN
                   graph = 60 + rand(0, 299) / 100;
                   shown_frames_left = rand(20, 99) / 20;
                END
-               bird_shot(px, py, pz, 5000, 0, 0);
+               bird_shot(px, py, pz,
+                         (sights.px - father.px) / 10,
+                         (sights.py - father.py) / 10,
+                         (sights.pz - (father.pz + BIRD_HALF_2D_SIZE * G_RES)) / 10);
                next_bullet_time = global_time + BIRD_FIRE_INTERVAL;
             END
          END
