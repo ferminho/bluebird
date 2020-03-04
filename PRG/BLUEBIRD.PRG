@@ -101,6 +101,7 @@ CONST
 
    // Action system
    ACTION_NONE = 0;
+   ACTION_DIE = 1;  // kill the process, not dying in terms of character death
    // Camera actions
    ACTION_SPECTATE_PLAYER = 10;
    // Rail actions
@@ -168,7 +169,7 @@ GLOBAL
       // Block_area: current area INDEX within block (first = 0, second = 1...)
       // Area: current area (area id, from 0 to n depending on grid size)
       INT block, INT block_cycle, INT block_area, INT area;
-      // Limits of the flyable zone in G_RES
+      // Rail box limits in G_RES (the box moves with the rail alongside the X axis)
       INT min_y, INT max_y;
       INT min_z, INT max_z;
    END
@@ -455,10 +456,6 @@ END
 //--------------------------------------------
 PROCESS rail_operator();
 //--------------------------------------------
-PRIVATE
-
-   INT rel_min_y, INT rel_max_y;
-
 BEGIN
 
    action = ACTION_NONE;
@@ -481,13 +478,6 @@ BEGIN
    level_rail.teleport_pxd = 0; // don't propagate teleport info this time
    level_rail.teleport_pyd = 0;
 
-   rel_min_y = levels[lev].coords.area_y_rel_range[0] * G_RES;
-   rel_max_y = levels[lev].coords.area_y_rel_range[1] * G_RES;
-   level_rail.min_y = py + rel_min_y;
-   level_rail.max_y = py + rel_max_y;
-   level_rail.min_z = levels[lev].coords.area_z_abs_range[0] * G_RES;
-   level_rail.max_z = levels[lev].coords.area_z_abs_range[1] * G_RES;
-
    vx = BIRD_STD_SPEED;
 
    WHILE (game_status == binded_game_status)
@@ -501,9 +491,6 @@ BEGIN
 
             px += level_rail.teleport_pxd;
             py += level_rail.teleport_pyd;
-
-            level_rail.min_y = py + rel_min_y;
-            level_rail.max_y = py + rel_max_y;
          ELSE
             level_rail.teleport_pxd = 0;
             level_rail.teleport_pyd = 0;
@@ -561,9 +548,13 @@ PRIVATE
    STRING str;
    INT str_length;
    is_first_cycle, is_last_area, enemies_alive, flag_rwe, flag_fc;
+   INT rel_min_y, INT rel_max_y;
    INT grid_i, INT grid_j; // position within grid matrix (i, j) i = row, j = col
 
 BEGIN
+
+   rel_min_y = levels[lev].coords.area_y_rel_range[0] * G_RES;
+   rel_max_y = levels[lev].coords.area_y_rel_range[1] * G_RES;
 
    IF (level_rail.block == -1)
       // First block/area
@@ -617,7 +608,14 @@ BEGIN
    x = grid.x0 + (grid_j * grid.cell_width); // in G_RES
    y = grid.y0 + (grid_i * grid.cell_height); // in G_RES
 
-   // jump to the candidate block/area
+   // Update rail box limits
+   level_rail.min_y = y + rel_min_y;
+   level_rail.max_y = y + rel_max_y;
+   level_rail.min_z = levels[lev].coords.area_z_abs_range[0] * G_RES;
+   level_rail.max_z = levels[lev].coords.area_z_abs_range[1] * G_RES;
+
+
+   // Make everyone jump to the candidate block/area
    level_rail.teleport_pxd = x - level_rail.px;
    level_rail.teleport_pyd = y - level_rail.py;
 
@@ -856,7 +854,7 @@ BEGIN
       END
 
       angle = father.rangle / G_TO_TRIGO_DIV; // trick: it will be almost normalized
-      IF (angle < 0) angle += 3600; END      // but it could be negative
+      IF (angle < 0) angle += 3600; END       // but it could be negative
       px = father.px + pxd;
       py = father.py;
       pz = father.pz + (BIRD_HALF_2D_SIZE * G_RES);
@@ -903,6 +901,10 @@ END
 //--------------------------------------------
 PROCESS bird_shot(INT px, INT py, INT pz, INT vx, INT vy, INT vz);
 //--------------------------------------------
+PRIVATE
+
+   dead = false;
+
 BEGIN
 
    priority = PRIORITY_BIRD_SHOT;
@@ -912,8 +914,8 @@ BEGIN
    graph = 70;
 
    WHILE (game_status == binded_game_status
-          AND abs(px - father.px) < 2000000
-          AND m8_wall < 0)
+          AND ABS(father.px - px) < 2000000
+          AND action != ACTION_DIE)
 
       px += (level_rail.teleport_pxd) + vx * delta;
       py += (level_rail.teleport_pyd) + vy * delta;
@@ -922,6 +924,7 @@ BEGIN
       x = px / G_RES;
       y = py / G_RES;
       z = (pz / G_RES) - 2; // m8 positioning correction (half graph height)
+
       FRAME;
    END
 END
