@@ -1,0 +1,12 @@
+# Do not replace CRLF to LF
+*.PRG -text
+
+# Binary files
+*.DAT binary
+*.FPG binary
+*.MAP binary
+*.PAL binary
+*.PCM binary
+*.PCX binary
+*.WAV binary
+*.WLD binary
