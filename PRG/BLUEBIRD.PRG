@@ -18,7 +18,7 @@ CONST
    DEVELOPER_MODE = true;
    STARTING_LEVEL = 0;
    SKIP_LOGOS = true;
-   SKIP_MENU = true;
+   SKIP_MENU = false;
    SKIP_INTRO = true;
    LOGGING = true;
    LOG_FILE = "bluebird.log";
@@ -87,11 +87,22 @@ CONST
    // Mode8
    MAIN_M8 = 0;
    MAX_M8_COORD = 30208 * G_RES;
+
    M8_Z_OFFSET = 7;
 
    // Menu navigation
-   MENU_QUIT = 0;
-   MENU_START_GAME = 1;
+   MENU_STATE_ENTERING = 0;
+   MENU_STATE_RUNNING = 1;
+   MENU_STATE_EXITING = 2;
+
+   MENU_ACTION_NONE = 0;
+   MENU_ACTION_ENTER = 1;
+   MENU_ACTION_EXIT = 2;
+
+   MENU_ITEM_Y = 100;
+   MENU_ITEM_HEIGHT = 20;
+   MENU_ITEM_DELAY = 10;
+   MENU_ITEM_DEFAULT = -1;
 
    // Effects
    FADE_SPEED = 10; // standard fade speed for transitions
@@ -113,8 +124,11 @@ CONST
    LEVEL_DEF_FILE = "levels.dat";
    LEVEL_MAX_LEVELS = 10;
    LEVEL_MAX_BLOCKS = 100;
+
    BLOCK_FLAG_REPEAT_WHILE_ENEMIES = 1; // obvious
    BLOCK_FLAG_FULL_CYCLES = 2;          // if repeating, never finish mid-cycle, always complete cycle
+
+   TIMER_GLOBAL = 9;
 
 GLOBAL
 
@@ -215,6 +229,10 @@ GLOBAL
    INT half_hfov_tan; // tan of half the HFOV
    INT half_vfov_tan; // tan of half the VFOV
 
+   STRUCT menu
+     state, action, num_items, shown_items, active_item;
+   END
+
 LOCAL
 
    // Game status process is binded to; it will be destroyed if game status changes
@@ -238,9 +256,6 @@ BEGIN
 
    init();
 
-   orchestrator();
-
-   let_me_alone();
    log_formatted("[Footer]", false);
 
 END
@@ -263,14 +278,21 @@ BEGIN
    load(BASE_PATH + LEVEL_DEF_FILE, &levels);
 
    set_mode(SCREEN_RES);
-   restore_type = SCREEN_RESTORE;
-   dump_type = SCREEN_DUMP;
+   // I've changed this because the menu is
+   // wrongly rendered.
+   //restore_type = SCREEN_RESTORE;
+   //dump_type = SCREEN_DUMP;
    set_fps(TARGET_FPS, MAX_FRAMESKIP);
    define_region(MAIN_REGION, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
    init_precalculated_trigonometry();
+
    time_master(); // this should always be running
    player_input(); // same goes for player input
+
+   menu_main();
+   //level(STARTING_LEVEL);
+
 END
 //--------------------------------------------
 
@@ -279,97 +301,170 @@ END
 // ------------- GAME STATUS MANAGEMENT
 // ----------------------------------------------------------
 
+//--------------------------------------------
+// Menu item.
+//--------------------------------------------
+process menu_item(pointer text)
+private
+  index, timer_start;
+begin
+  index = menu.num_items;
+
+  menu.num_items++;
+
+  graph = write_in_map(0, text, 0);
+  y = MENU_ITEM_Y + (index * MENU_ITEM_HEIGHT);
+
+  if (menu.active_item == index)
+    flags = 0;
+  else
+    flags = 4;
+  end
+
+  // Menu item enters.
+  timer_start = timer + ((index + 1) * 50);
+  while (timer - timer_start < 50)
+    x = quadratic(50, clamp(timer - timer_start, 0, 50), -100, 75, 50);
+    frame;
+  end
+  x = 50;
+
+  menu.shown_items++;
+
+  while (menu.action == MENU_ACTION_NONE)
+    if (menu.active_item == index)
+      flags = 0;
+    else
+      flags = 4;
+    end
+    frame;
+  end
+
+  timer_start = timer + ((index + 1) * 50);
+  while (timer - timer_start < 50)
+    x = quadratic(50, clamp(timer - timer_start, 0, 50), 50, 75, -100);
+    frame;
+  end
+  x = 50;
+
+  menu.shown_items--;
+
+end
 
 //--------------------------------------------
-FUNCTION orchestrator();
+// Main menu
 //--------------------------------------------
-PRIVATE
+process menu_main()
+begin
+  menu_reset(0);
 
-   selection;
+  menu_item("Un jugador");
+  menu_item("Dos jugadores");
+  menu_item("Opciones");
+  menu_item("Creditos");
+  menu_item("Salir");
 
-BEGIN
+  menu_loop();
 
-   fade(0, 0, 0, 64);
+  if (menu.action == MENU_ACTION_ENTER)
+    switch (menu.active_item)
+      case 0:
+        level(STARTING_LEVEL);
+      end
+      case 1:
+        level(STARTING_LEVEL);
+      end
+      case 2:
+        // TODO: Opciones
+        menu_not_implemented();
+      end
+      case 3:
+        // TODO: Creditos
+        menu_not_implemented();
+      end
+      case 4:
+        menu_exit();
+      end
+    end
+  end
 
-   display_logos();
-
-   LOOP
-      selection = show_menu();
-
-      IF (selection == 0)
-        RETURN;
-      END
-      IF (selection == 1)
-         play_game();
-      END
-   END
-END
-//--------------------------------------------
-
-
-//--------------------------------------------
-FUNCTION display_logos();
-//--------------------------------------------
-BEGIN
-
-   game_status = id;
-   IF (SKIP_LOGOS)
-      log("Skipped logos");
-   ELSE
-      // TODO: implement logos display
-   END
-
-END
-//--------------------------------------------
-
-
-//--------------------------------------------
-FUNCTION show_menu();
-//--------------------------------------------
-BEGIN
-
-   game_status = id;
-   IF (SKIP_MENU)
-      log("Skipped menus");
-   ELSE
-      // TODO: implement menus
-   END
-
-   RETURN(1);
-END
-//--------------------------------------------
-
+  if (menu.action == MENU_ACTION_EXIT)
+    menu_exit();
+  end
+end
 
 //--------------------------------------------
-FUNCTION play_game();
+// Resets menu options.
 //--------------------------------------------
-BEGIN
-
-   play_intro();
-   play_level(STARTING_LEVEL);
-
-END
-//--------------------------------------------
-
-
-//--------------------------------------------
-FUNCTION play_intro();
-//--------------------------------------------
-BEGIN
-
-   game_status = id;
-   IF (SKIP_INTRO)
-      log("Skipped intro");
-   ELSE
-      // TODO: implement intro
-   END
-
-END
-//--------------------------------------------
-
+function menu_reset(active_item)
+begin
+  menu.num_items = 0;
+  if (menu.active_item >= 0)
+    menu.active_item = active_item;
+  end
+end
 
 //--------------------------------------------
-FUNCTION play_level(INT new_level);
+//
+//
+//
+//--------------------------------------------
+function menu_loop()
+begin
+  menu.state = MENU_STATE_ENTERING;
+  while (menu.shown_items < menu.num_items)
+    frame;
+  end
+  menu.state = MENU_STATE_RUNNING;
+  while (menu.action == MENU_ACTION_NONE)
+    if (key(_up) or joy.up)
+      menu.active_item--;
+      if (menu.active_item < 0)
+        menu.active_item = menu.num_items - 1;
+      end
+      wait(MENU_ITEM_DELAY);
+    end
+
+    if (key(_down) or joy.down)
+      menu.active_item++;
+      if (menu.active_item >= menu.num_items)
+        menu.active_item = 0;
+      end
+      wait(MENU_ITEM_DELAY);
+    end
+
+    if (key(_space) or key(_enter) or joy.button1)
+      menu.action = MENU_ACTION_ENTER;
+      wait(MENU_ITEM_DELAY);
+    end
+
+    if (key(_esc) or joy.button2)
+      menu.action = MENU_ACTION_EXIT;
+      wait(MENU_ITEM_DELAY);
+    end
+    frame;
+  end
+  menu.state = MENU_STATE_EXITING;
+  while (menu.shown_items > 0)
+    frame;
+  end
+end
+
+function menu_exit()
+begin
+  exit("Gracias por jugar!", 0);
+end
+
+function menu_not_implemented()
+begin
+  exit("No implementado :(", 1);
+end
+
+//--------------------------------------------
+
+
+//--------------------------------------------
+PROCESS level(INT new_level);
 //--------------------------------------------
 BEGIN
 
@@ -1249,3 +1344,36 @@ BEGIN
 
 END
 //--------------------------------------------
+
+function wait(delay)
+private
+  timer_start;
+begin
+  timer_start = timer[TIMER_GLOBAL];
+  while (timer[TIMER_GLOBAL] - timer_start < delay)
+    frame;
+  end
+end
+
+function linear(r, p, a, b)
+begin
+  return ( (( (r - p) * a ) + ( p * b )) / r );
+end
+
+function quadratic(r, p, a, b, c)
+private
+  d, e;
+begin
+  d = linear(r, p, a, b);
+  e = linear(r, p, b, c);
+  return (linear(r, p, d, e));
+end
+
+function cubic(r, p, a, b, c, d)
+private
+  e, f;
+begin
+  e = quadratic(r, p, a, b, c);
+  f = quadratic(r, p, b, c, d);
+  return (linear(r, p, e, f));
+end
