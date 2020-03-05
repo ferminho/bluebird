@@ -142,6 +142,7 @@ GLOBAL
          INT area_width;
          INT area_height;
          INT area_gap;
+         // "Range" stands for the rail box dimensions definition. X and Z are absolute values, Y is relative
          WORD area_x_abs_range[1];
          INT area_y_rel_range[1];
          WORD area_z_abs_range[1];
@@ -170,11 +171,16 @@ GLOBAL
       // Area: current area (area id, from 0 to n depending on grid size)
       INT block, INT block_cycle, INT block_area, INT area;
       // Rail box limits in G_RES (the box moves with the rail alongside the X axis)
-      INT min_y, INT max_y;
-      INT min_z, INT max_z;
+      INT box_min_py, INT box_max_py;
+      INT box_min_pz, INT box_max_pz;
+      // Area absolute limits in G_RES, updated after every area change
+      INT area_min_px, INT area_max_px;
+      INT area_min_py, INT area_max_py;
+      INT area_min_pz, INT area_max_pz;
+
    END
 
-   // World grid info
+   // World grid info in G_RES
    STRUCT grid
       INT x0, INT y0, INT x1;
       INT cell_width, INT cell_height;
@@ -609,16 +615,41 @@ BEGIN
    y = grid.y0 + (grid_i * grid.cell_height); // in G_RES
 
    // Update rail box limits
-   level_rail.min_y = y + rel_min_y;
-   level_rail.max_y = y + rel_max_y;
-   level_rail.min_z = levels[lev].coords.area_z_abs_range[0] * G_RES;
-   level_rail.max_z = levels[lev].coords.area_z_abs_range[1] * G_RES;
+   level_rail.box_min_py = y + rel_min_y;
+   level_rail.box_max_py = y + rel_max_y;
+   level_rail.box_min_pz = levels[lev].coords.area_z_abs_range[0] * G_RES;
+   level_rail.box_max_pz = levels[lev].coords.area_z_abs_range[1] * G_RES;
 
+   // Update area limits
+   level_rail.area_min_px = grid_j * grid.cell_width;
+   level_rail.area_max_px = level_rail.area_min_px + levels[lev].coords.area_width * G_RES;
+   level_rail.area_min_py = grid_i * grid.cell_height;
+   level_rail.area_max_py = level_rail.area_min_py + levels[lev].coords.area_height * G_RES;
+   level_rail.area_min_pz = levels[lev].coords.area_z_abs_range[0] * G_RES; // for now, fixed
+   level_rail.area_max_pz = levels[lev].coords.area_z_abs_range[1] * G_RES; // for now, fixed
 
    // Make everyone jump to the candidate block/area
    level_rail.teleport_pxd = x - level_rail.px;
    level_rail.teleport_pyd = y - level_rail.py;
 
+END
+//--------------------------------------------
+
+
+//--------------------------------------------
+FUNCTION is_inside_current_area();
+//--------------------------------------------
+BEGIN
+   x = father.px;
+   y = father.py;
+   z = father.pz;
+
+   RETURN(x >= level_rail.area_min_px
+          AND x <= level_rail.area_max_px
+          AND y >= level_rail.area_min_py
+          AND y <= level_rail.area_max_py
+          AND z >= level_rail.area_min_pz
+          AND z <= level_rail.area_max_pz);
 END
 //--------------------------------------------
 
@@ -764,10 +795,10 @@ BEGIN
       py += vy * delta;
       pz += vz * delta;
 
-      IF (py < level_rail.min_y) py = level_rail.min_y; vy = 0; END
-      IF (py > level_rail.max_y) py = level_rail.max_y; vy = 0; END
-      IF (pz < level_rail.min_z) pz = level_rail.min_z; vz = 0; END
-      IF (pz > level_rail.max_z) pz = level_rail.max_z; vz = 0; END
+      IF (py < level_rail.box_min_py) py = level_rail.box_min_py; vy = 0; END
+      IF (py > level_rail.box_max_py) py = level_rail.box_max_py; vy = 0; END
+      IF (pz < level_rail.box_min_pz) pz = level_rail.box_min_pz; vz = 0; END
+      IF (pz > level_rail.box_max_pz) pz = level_rail.box_max_pz; vz = 0; END
 
       // Rolling
       max_rangle = (100000 * vel_mod) / BIRD_MAX_VEL;
@@ -901,10 +932,6 @@ END
 //--------------------------------------------
 PROCESS bird_shot(INT px, INT py, INT pz, INT vx, INT vy, INT vz);
 //--------------------------------------------
-PRIVATE
-
-   dead = false;
-
 BEGIN
 
    priority = PRIORITY_BIRD_SHOT;
@@ -914,7 +941,6 @@ BEGIN
    graph = 70;
 
    WHILE (game_status == binded_game_status
-          AND ABS(father.px - px) < 2000000
           AND action != ACTION_DIE)
 
       px += (level_rail.teleport_pxd) + vx * delta;
@@ -925,7 +951,12 @@ BEGIN
       y = py / G_RES;
       z = (pz / G_RES) - 2; // m8 positioning correction (half graph height)
 
-      FRAME;
+      m7.z = is_inside_current_area();
+      IF (is_inside_current_area())
+         FRAME;
+      ELSE
+         action = ACTION_DIE;
+      END
    END
 END
 //--------------------------------------------
