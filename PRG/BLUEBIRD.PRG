@@ -1,7 +1,7 @@
 // -------------------------------------------
 // BlueBird
 // by Ferminho 2020
-// done for DivCompo 2020 -- long live DIV!
+// done FOR DivCompo 2020 -- long live DIV!
 //
 // Licensed under> check LICENSE file
 // -------------------------------------------
@@ -18,7 +18,7 @@ CONST
    DEVELOPER_MODE = true;
    STARTING_LEVEL = 0;
    SKIP_LOGOS = true;
-   SKIP_MENU = true;
+   SKIP_MENU = false;
    SKIP_INTRO = true;
    LOGGING = true;
    LOG_FILE = "bluebird.log";
@@ -33,10 +33,10 @@ CONST
    MAX_FRAMESKIP = 2;
    MAIN_REGION = 1;
 
-   // Math and physics
-   G_RES = 1000;        // GLOBAL RESOLUTION / precision to be used throughout all processes
-   TRIGO_RES = 10;      // Resolution for trigonometry
-   G_TO_TRIGO_DIV = 100;// From global to trigo resolution division (multiply if the other way around)
+   // Math AND physics
+   G_RES = 1000;        // GLOBAL RESOLUTION / precision TO be used throughout all processes
+   TRIGO_RES = 10;      // Resolution FOR trigonometry
+   G_TO_TRIGO_DIV = 100;// From GLOBAL TO trigo resolution division (multiply IF the other way around)
 
    // Camera properties
    HFOV = 72000;
@@ -53,7 +53,7 @@ CONST
 
    // Bird properties
    BIRD_SCALING = 15;   // %
-   BIRD_2D_SIZE = 45;   // size of 2D sprite (ship itself, not container map)
+   BIRD_2D_SIZE = 45;   // size of 2D sprite (ship itself, NOT container map)
    BIRD_HALF_2D_SIZE = BIRD_2D_SIZE / 2;
    BIRD_SLOW_SPEED = 225;
    BIRD_STD_SPEED = 450;
@@ -64,7 +64,7 @@ CONST
    BIRD_MAX_VEL = 400; // "2D" speed
    BIRD_MAIN_GRAPH = 1;
    BIRD_AIM_DIST_X = 25000;
-   BIRD_MAX_AIM_ANGLE = 600; // angle (TRIGO RES) at which to shoot at max 2D speed
+   BIRD_MAX_AIM_ANGLE = 600; // angle (TRIGO RES) at which TO shoot at max 2D speed
    BIRD_FIRE_VULKAN_ACCEL = 2000; // in 0.5s it will be rolling at 1000 rps (firing speed)
    BIRD_FIRE_VULKAN_DECCEL = 1000; // when at 1000 rps, in 1s it will stop rolling
    BIRD_FIRE_INTERVAL = 125; // 8 bullets x 2 vulkans = 16 bullets per second!
@@ -87,21 +87,32 @@ CONST
    // Mode8
    MAIN_M8 = 0;
    MAX_M8_COORD = 30208 * G_RES;
+
    M8_Z_OFFSET = 7;
 
    // Menu navigation
-   MENU_QUIT = 0;
-   MENU_START_GAME = 1;
+   MENU_STATE_ENTERING = 0;
+   MENU_STATE_RUNNING = 1;
+   MENU_STATE_EXITING = 2;
+
+   MENU_ACTION_NONE = 0;
+   MENU_ACTION_ENTER = 1;
+   MENU_ACTION_EXIT = 2;
+
+   MENU_ITEM_Y = 100;
+   MENU_ITEM_HEIGHT = 20;
+   MENU_ITEM_DELAY = 10;
+   MENU_ITEM_DEFAULT = -1;
 
    // Effects
-   FADE_SPEED = 10; // standard fade speed for transitions
+   FADE_SPEED = 10; // standard fade speed FOR transitions
 
    // Input
    I_PLAYER = 0;
 
    // Action system
    ACTION_NONE = 0;
-   ACTION_DIE = 1;  // kill the process, not dying in terms of character death
+   ACTION_DIE = 1;  // kill the PROCESS, NOT dying in terms of character death
    // Camera actions
    ACTION_SPECTATE_PLAYER = 10;
    // Rail actions
@@ -114,16 +125,19 @@ CONST
    LEVEL_DEF_FILE = "levels.dat";
    LEVEL_MAX_LEVELS = 10;
    LEVEL_MAX_BLOCKS = 100;
+
    BLOCK_FLAG_REPEAT_WHILE_ENEMIES = 1; // obvious
-   BLOCK_FLAG_FULL_CYCLES = 2;          // if repeating, never finish mid-cycle, always complete cycle
+   BLOCK_FLAG_FULL_CYCLES = 2;          // IF repeating, never finish mid-cycle, always complete cycle
+
+   TIMER_GLOBAL = 9;
 
 GLOBAL
 
-   INT game_status; // current status, usually id of game status handler
-   INT lev; // current level - name is unusually short for commodity
+   INT game_status; // current status, usually ID of game status handler
+   INT lev; // current level - name is unusually short FOR commodity
 
    // Levels definitions
-   //    Since Div is not very fond of dynamic data structures, there are some "fixed big struct arrays".
+   //    Since Div is NOT very fond of dynamic data structures, there are some "fixed big STRUCT arrays".
    STRUCT levels[LEVEL_MAX_LEVELS]
       STRING name;   // "" = empty
       // Resources
@@ -136,13 +150,13 @@ GLOBAL
          BYTE fog_color[2];
          BYTE fog_distance[1];
       END
-      // World-related coords and dimensions, all in simple res
+      // World-related coords AND dimensions, all in simple res
       STRUCT coords
          INT camera_z;
          INT area_width;
          INT area_height;
          INT area_gap;
-         // "Range" stands for the rail box dimensions definition. X and Z are absolute values, Y is relative
+         // "Range" stands FOR the rail box dimensions definition. X AND Z are absolute values, Y is relative
          WORD area_x_abs_range[1];
          INT area_y_rel_range[1];
          WORD area_z_abs_range[1];
@@ -150,25 +164,25 @@ GLOBAL
       // Blocks definition include the sucession of areas, as well as enemy waves
       INT blocks_count;
       STRUCT blocks[LEVEL_MAX_BLOCKS]
-         STRING areas; // areas in 2-digit space-delimited string (e.g. "00 12 01 01 03"), "" = empty block
-         // watch out, do not add starting or trailing spaces. Don't or don't. There is no trim.
-         INT flags;  // block properties, default 0
+         STRING areas; // areas in 2-digit space-delimited STRING (e.g. "00 12 01 01 03"), "" = empty block
+         // watch out, do NOT add starting OR trailing spaces. Don't OR don't. There is no trim.
+         INT flags;  // block properties, DEFAULT 0
          STRING enemies; // enemy wave info in EDBBSL
       END
    END
 
-   // Rail: info about the current "rail" the camera and player are following, in realtime
+   // Rail: info about the current "rail" the camera AND player are following, in realtime
    STRUCT level_rail
-      INT teleport_pxd, INT teleport_pyd; // (G_RES) teleport offset/delta during teleport frame
+      INT teleport_pxd, INT teleport_pyd; // (G_RES) teleport OFFSET/delta during teleport FRAME
       // Coords
-      INT px, INT py, INT pz; // (G_RES) updated every frame with base-px,py,pz
+      INT px, INT py, INT pz; // (G_RES) updated every FRAME with base-px,py,pz
       INT x, INT y, INT z; // in simple res
       // Position within rail blocks defined in level
       // Block: current block
       // Block_cycle: current cycle withing block (0..n), i.e. number of times it has been repeated
-      //    Makes sense only when a repeat-flag is active
+      //    Makes sense only when a REPEAT-flag is active
       // Block_area: current area INDEX within block (first = 0, second = 1...)
-      // Area: current area (area id, from 0 to n depending on grid size)
+      // Area: current area (area ID, FROM 0 TO n depending on grid size)
       INT block, INT block_cycle, INT block_area, INT area;
       // Rail box limits in G_RES (the box moves with the rail alongside the X axis)
       INT box_min_py, INT box_max_py;
@@ -209,10 +223,10 @@ GLOBAL
 
    // Input
    STRUCT input[0]
-      INT x;         // -100 to 100
-      INT y;         // -100 to 100
-      INT throttle;  // -1 to 1
-      fire;          // true or false
+      INT x;         // -100 TO 100
+      INT y;         // -100 TO 100
+      INT throttle;  // -1 TO 1
+      fire;          // true OR false
    END
 
    // Math
@@ -222,17 +236,21 @@ GLOBAL
    INT half_hfov_tan; // tan of half the HFOV
    INT half_vfov_tan; // tan of half the VFOV
 
+   STRUCT menu
+     state, action, num_items, shown_items, active_item;
+   END
+
 LOCAL
 
-   // Game status process is binded to; it will be destroyed if game status changes
+   // Game status PROCESS is binded TO; it will be destroyed IF game status changes
    INT binded_game_status;
 
-   // Precision coordinates in G_RES resolution. This pz is meant for m8, not z-depth
+   // Precision coordinates in G_RES resolution. This pz is meant FOR m8, NOT z-depth
    INT px, INT py, INT pz;
 
    // Roll angle (remember usual angle is yaw in m8)
    INT rangle;
-   // Graph for entity angle 0 (first angle step)
+   // Graph FOR entity angle 0 (first angle STEP)
    base_graph;
 
    // Velocity in units per second
@@ -245,9 +263,6 @@ BEGIN
 
    init();
 
-   orchestrator();
-
-   let_me_alone();
    log_formatted("[Footer]", false);
 
 END
@@ -270,14 +285,21 @@ BEGIN
    load(BASE_PATH + LEVEL_DEF_FILE, &levels);
 
    set_mode(SCREEN_RES);
-   restore_type = SCREEN_RESTORE;
-   dump_type = SCREEN_DUMP;
+   // I've changed this because the menu is
+   // wrongly rendered.
+   //restore_type = SCREEN_RESTORE;
+   //dump_type = SCREEN_DUMP;
    set_fps(TARGET_FPS, MAX_FRAMESKIP);
    define_region(MAIN_REGION, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
    init_precalculated_trigonometry();
+
    time_master(); // this should always be running
-   player_input(); // same goes for player input
+   player_input(); // same goes FOR player input
+
+   menu_main();
+   //level(STARTING_LEVEL);
+
 END
 //--------------------------------------------
 
@@ -286,111 +308,184 @@ END
 // ------------- GAME STATUS MANAGEMENT
 // ----------------------------------------------------------
 
-
 //--------------------------------------------
-FUNCTION orchestrator();
+// Menu item.
 //--------------------------------------------
+PROCESS menu_item(POINTER text)
 PRIVATE
-
-   selection;
-
+  index, timer_start;
 BEGIN
+  index = menu.num_items;
 
-   fade(0, 0, 0, 64);
+  menu.num_items++;
 
-   display_logos();
+  graph = write_in_map(0, text, 0);
+  y = MENU_ITEM_Y + (index * MENU_ITEM_HEIGHT);
 
-   LOOP
-      selection = show_menu();
+  IF (menu.active_item == index)
+    flags = 0;
+  ELSE
+    flags = 4;
+  END
 
-      IF (selection == 0)
-        RETURN;
+  // Menu item enters.
+  timer_start = timer + ((index + 1) * 50);
+  WHILE (timer - timer_start < 50)
+    x = quadratic(50, clamp(timer - timer_start, 0, 50), -100, 75, 50);
+    FRAME;
+  END
+  x = 50;
+
+  menu.shown_items++;
+
+  WHILE (menu.action == MENU_ACTION_NONE)
+    IF (menu.active_item == index)
+      flags = 0;
+    ELSE
+      flags = 4;
+    END
+    FRAME;
+  END
+
+  timer_start = timer + ((index + 1) * 50);
+  WHILE (timer - timer_start < 50)
+    x = quadratic(50, clamp(timer - timer_start, 0, 50), 50, 75, -100);
+    FRAME;
+  END
+  x = 50;
+
+  menu.shown_items--;
+
+END
+
+//--------------------------------------------
+// Main menu
+//--------------------------------------------
+PROCESS menu_main()
+BEGIN
+  menu_reset(0);
+
+  menu_item("Un jugador");
+  menu_item("Dos jugadores");
+  menu_item("Opciones");
+  menu_item("Creditos");
+  menu_item("Salir");
+
+  menu_loop();
+
+  IF (menu.action == MENU_ACTION_ENTER)
+    SWITCH (menu.active_item)
+      CASE 0:
+        level(STARTING_LEVEL);
       END
-      IF (selection == 1)
-         play_game();
+      CASE 1:
+        level(STARTING_LEVEL);
       END
-   END
+      CASE 2:
+        // TODO: Opciones
+        menu_not_implemented();
+      END
+      CASE 3:
+        // TODO: Creditos
+        menu_not_implemented();
+      END
+      CASE 4:
+        menu_exit();
+      END
+    END
+  END
+
+  IF (menu.action == MENU_ACTION_EXIT)
+    menu_exit();
+  END
 END
+
+//--------------------------------------------
+// Resets menu options.
+//--------------------------------------------
+FUNCTION menu_reset(active_item)
+BEGIN
+  menu.num_items = 0;
+  IF (menu.active_item >= 0)
+    menu.active_item = active_item;
+  END
+END
+
+//--------------------------------------------
+//
+//
+//
+//--------------------------------------------
+FUNCTION menu_loop()
+BEGIN
+  menu.state = MENU_STATE_ENTERING;
+  WHILE (menu.shown_items < menu.num_items)
+    FRAME;
+  END
+  menu.state = MENU_STATE_RUNNING;
+  WHILE (menu.action == MENU_ACTION_NONE)
+    IF (key(_up) OR joy.up)
+      menu.active_item--;
+      IF (menu.active_item < 0)
+        menu.active_item = menu.num_items - 1;
+      END
+      wait(MENU_ITEM_DELAY);
+    END
+
+    IF (key(_down) OR joy.down)
+      menu.active_item++;
+      IF (menu.active_item >= menu.num_items)
+        menu.active_item = 0;
+      END
+      wait(MENU_ITEM_DELAY);
+    END
+
+    IF (key(_space) OR key(_enter) OR joy.button1)
+      menu.action = MENU_ACTION_ENTER;
+      wait(MENU_ITEM_DELAY);
+    END
+
+    IF (key(_esc) OR joy.button2)
+      menu.action = MENU_ACTION_EXIT;
+      wait(MENU_ITEM_DELAY);
+    END
+    FRAME;
+  END
+  menu.state = MENU_STATE_EXITING;
+  WHILE (menu.shown_items > 0)
+    FRAME;
+  END
+END
+
+FUNCTION menu_exit()
+BEGIN
+  exit("Gracias por jugar!", 0);
+END
+
+FUNCTION menu_not_implemented()
+BEGIN
+  exit("No implementado :(", 1);
+END
+
 //--------------------------------------------
 
 
 //--------------------------------------------
-FUNCTION display_logos();
+PROCESS level(INT new_level);
 //--------------------------------------------
 BEGIN
 
-   game_status = id;
-   IF (SKIP_LOGOS)
-      log("Skipped logos");
-   ELSE
-      // TODO: implement logos display
-   END
-
-END
-//--------------------------------------------
-
-
-//--------------------------------------------
-FUNCTION show_menu();
-//--------------------------------------------
-BEGIN
-
-   game_status = id;
-   IF (SKIP_MENU)
-      log("Skipped menus");
-   ELSE
-      // TODO: implement menus
-   END
-
-   RETURN(1);
-END
-//--------------------------------------------
-
-
-//--------------------------------------------
-FUNCTION play_game();
-//--------------------------------------------
-BEGIN
-
-   play_intro();
-   play_level(STARTING_LEVEL);
-
-END
-//--------------------------------------------
-
-
-//--------------------------------------------
-FUNCTION play_intro();
-//--------------------------------------------
-BEGIN
-
-   game_status = id;
-   IF (SKIP_INTRO)
-      log("Skipped intro");
-   ELSE
-      // TODO: implement intro
-   END
-
-END
-//--------------------------------------------
-
-
-//--------------------------------------------
-FUNCTION play_level(INT new_level);
-//--------------------------------------------
-BEGIN
-
-   game_status = id;
+   game_status = ID;
    log("Playing level " + itoa(new_level));
 
    IF (levels[new_level].name == "")
-      log("Level " + itoa(new_level) + " not defined. Returning");
+      log("Level " + itoa(new_level) + " NOT defined. Returning");
       RETURN;
    END
 
    lev = new_level;
-   // Common FPGs are loaded and re-processed each level to allow for multiple palettes
-   // (for that, we'd need several pre-paletted FPGs though)
+   // Common FPGs are loaded AND re-processed each level TO allow FOR multiple palettes
+   // (FOR that, we'd need several pre-paletted FPGs though)
    load_level_resources(new_level);
 
    post_process();
@@ -532,7 +627,7 @@ BEGIN
    area_x0 = levels[lev].coords.area_x_abs_range[0];
    area_x1 = levels[lev].coords.area_x_abs_range[1];
 
-   // calculate the map "grid" coords and dimensions
+   // calculate the map "grid" coords AND dimensions
    grid.x0 = area_x0 * G_RES;
    grid.y0 = (area_h * G_RES) / 2;
    grid.x1 = area_x1 * G_RES;
@@ -548,7 +643,7 @@ END
 //--------------------------------------------
 FUNCTION advance_rail_block_area();
 //--------------------------------------------
-// This function knows about parsing block area definitions
+// This FUNCTION knows about parsing block area definitions
 PRIVATE
 
    STRING str;
@@ -579,7 +674,7 @@ BEGIN
       flag_fc = (flags & BLOCK_FLAG_FULL_CYCLES) == BLOCK_FLAG_FULL_CYCLES;
       IF ((is_last_area AND NOT (flag_rwe AND enemies_alive))
           OR (NOT is_last_area AND NOT is_first_cycle AND NOT flag_fc AND NOT enemies_alive))
-         // Jump to next block
+         // Jump TO next block
          level_rail.block += 1;
          level_rail.block_area = 0;
          level_rail.block_cycle = 0;
@@ -595,7 +690,7 @@ BEGIN
 
    // Parse area
    strcpy(str, levels[lev].blocks[level_rail.block].areas);
-   str += " "; // one trailing space to make it multiple of 3 chars
+   str += " "; // one trailing space TO make it multiple of 3 chars
    str_length = strlen(str);
    strdel(str, level_rail.block_area * 3, str_length - (level_rail.block_area * 3) - 2);
    level_rail.area = calculate(str);
@@ -604,7 +699,7 @@ BEGIN
    grid_j = level_rail.area / grid.rows;
    grid_i = level_rail.area MOD grid.rows;
    IF (grid_j >= grid.rows)
-      log("ERROR: tried to jump to grid (" + itoa(grid_i) + ", " + itoa(grid_j) + ")");
+      log("ERROR: tried TO jump TO grid (" + itoa(grid_i) + ", " + itoa(grid_j) + ")");
       log("  Max: (" + itoa(grid.rows - 1) + ", " + itoa(grid.columns - 1) + ")");
       log("  Reading: block " + itoa(level_rail.block)
           + " block_area " + itoa(level_rail.block_area)
@@ -625,10 +720,10 @@ BEGIN
    level_rail.area_max_px = level_rail.area_min_px + levels[lev].coords.area_width * G_RES;
    level_rail.area_min_py = grid_i * grid.cell_height;
    level_rail.area_max_py = level_rail.area_min_py + levels[lev].coords.area_height * G_RES;
-   level_rail.area_min_pz = levels[lev].coords.area_z_abs_range[0] * G_RES; // for now, fixed
-   level_rail.area_max_pz = levels[lev].coords.area_z_abs_range[1] * G_RES; // for now, fixed
+   level_rail.area_min_pz = levels[lev].coords.area_z_abs_range[0] * G_RES; // FOR now, fixed
+   level_rail.area_max_pz = levels[lev].coords.area_z_abs_range[1] * G_RES; // FOR now, fixed
 
-   // Make everyone jump to the candidate block/area
+   // Make everyone jump TO the candidate block/area
    level_rail.teleport_pxd = x - level_rail.px;
    level_rail.teleport_pyd = y - level_rail.py;
 
@@ -674,12 +769,12 @@ PRIVATE
    INT half_rail_y_range;  // in simple res
    INT half_rail_z_range;  // in simple_res
 
-   // all these to calculate the 3D-2D conversions and player positioning on screen
+   // all these TO calculate the 3D-2D conversions AND player positioning on screen
    INT player_dx;
    INT player_hres; // horiz resolution at player plane visible on screen (higher when farther)
    INT player_vres;
-   INT player_ratio; // -1.0 to 1.0 on the rail_*_range (0.0 = center). In G_RES
-   INT camera_max_pos; // temp var used to determine camera pos for player_*_ratio = 1.0
+   INT player_ratio; // -1.0 TO 1.0 on the rail_*_range (0.0 = center). In G_RES
+   INT camera_max_pos; // temp var used TO determine camera pos FOR player_*_ratio = 1.0
 
    INT target_y, INT target_z;
 
@@ -691,9 +786,9 @@ BEGIN
    rail_z_range = levels[lev].coords.area_z_abs_range[1]
              - levels[lev].coords.area_z_abs_range[0];
    half_rail_z_range = rail_z_range / 2;
-   rail_y_range += BIRD_2D_SIZE; // to include full ship in view
+   rail_y_range += BIRD_2D_SIZE; // TO include full ship in view
    rail_y_range *= G_RES;
-   rail_z_range += BIRD_2D_SIZE + GROUND_MARGIN; // same and also let some margin to ground
+   rail_z_range += BIRD_2D_SIZE + GROUND_MARGIN; // same AND also let some margin TO ground
    rail_z_range *= G_RES;
 
    binded_game_status = game_status;
@@ -867,7 +962,7 @@ PRIVATE
 
    INT next_bullet_time = -1;
    INT accel;
-   INT rolling_speed = 0; // 0 to 1 * G_RES
+   INT rolling_speed = 0; // 0 TO 1 * G_RES
    INT shown_frames_left;
 
 BEGIN
@@ -906,10 +1001,7 @@ BEGIN
                   graph = 60 + rand(0, 299) / 100;
                   shown_frames_left = rand(20, 99) / 20;
                END
-               bird_shot(px, py, pz,
-                         (sights.px - father.px) / 10,
-                         (sights.py - father.py) / 10,
-                         (sights.pz - (father.pz + BIRD_HALF_2D_SIZE * G_RES)) / 10);
+               bird_shot(px, py, pz, 5000, 0, 0);
                next_bullet_time = global_time + BIRD_FIRE_INTERVAL;
             END
          END
@@ -987,10 +1079,10 @@ BEGIN
    fpg_bird = load_fpg(BASE_PATH + "fpg\bird.fpg");
    fpg_flying_enemies = load_fpg(BASE_PATH + "fpg\fen.fpg");
    fpg_misc = load_fpg(BASE_PATH + "fpg\misc.fpg");
-   log("Loaded resources for level " + itoa(new_level));
+   log("Loaded resources FOR level " + itoa(new_level));
 
    preprocess_resources();
-   log("Preprocessed resources for level " + itoa(new_level));
+   log("Preprocessed resources FOR level " + itoa(new_level));
 END
 //--------------------------------------------
 
@@ -1148,7 +1240,7 @@ PROCESS time_master();
 PRIVATE
 
    INT last_timer = 0;
-   INT carry_out = 0;  // remaining decimals from previous frame
+   INT carry_out = 0;  // remaining decimals FROM previous FRAME
 
 BEGIN
 
@@ -1157,10 +1249,10 @@ BEGIN
    LOOP
       delta = timer - last_timer;
       last_timer += delta;
-      // transform delta to G_RES scale (not necessarily 1/100s as in timer[])
+      // transform delta TO G_RES scale (NOT necessarily 1/100s as in timer[])
       delta = (delta * G_RES) / 100;
 
-      // transform with speed, keeping carry out for next frame
+      // transform with speed, keeping carry out FOR next FRAME
       delta = (delta * time_speed) + carry_out;
       carry_out = delta % G_RES;
       delta /= G_RES;
@@ -1286,3 +1378,36 @@ BEGIN
 
 END
 //--------------------------------------------
+
+FUNCTION wait(delay)
+PRIVATE
+  timer_start;
+BEGIN
+  timer_start = timer[TIMER_GLOBAL];
+  WHILE (timer[TIMER_GLOBAL] - timer_start < delay)
+    FRAME;
+  END
+END
+
+FUNCTION linear(r, p, a, b)
+BEGIN
+  RETURN ( (( (r - p) * a ) + ( p * b )) / r );
+END
+
+FUNCTION quadratic(r, p, a, b, c)
+PRIVATE
+  d, e;
+BEGIN
+  d = linear(r, p, a, b);
+  e = linear(r, p, b, c);
+  RETURN (linear(r, p, d, e));
+END
+
+FUNCTION cubic(r, p, a, b, c, d)
+PRIVATE
+  e, f;
+BEGIN
+  e = quadratic(r, p, a, b, c);
+  f = quadratic(r, p, b, c, d);
+  RETURN (linear(r, p, e, f));
+END

@@ -1,0 +1,7 @@
+*.PRG text eol=crlf
+
+*.DAT binary
+*.FPG binary
+*.MAP binary
+*.PCX binary
+*.PAL binary
