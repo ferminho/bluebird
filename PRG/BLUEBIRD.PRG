@@ -251,8 +251,8 @@ LOCAL
    // Precision coordinates in G_RES resolution. This pz is meant FOR m8, NOT z-depth
    INT px, INT py, INT pz;
 
-   // Roll angle (remember usual angle is yaw in m8)
-   INT rangle;
+   // Roll, pitch angles (remember old "angle" is yaw in m8)
+   INT roll, pitch;
    // Graph FOR entity angle 0 (first angle STEP)
    base_graph;
 
@@ -851,7 +851,7 @@ PRIVATE
 
    INT vel_mod;
    INT clamp_factor;
-   INT max_rangle;
+   INT max_roll;
    sights, vulkan_l, vulkan_r;
    INT aim_angle_y, INT aim_angle_z; // aim angles in G_RES
 
@@ -899,9 +899,9 @@ BEGIN
       IF (pz > level_rail.box_max_pz) pz = level_rail.box_max_pz; vz = 0; END
 
       // Rolling
-      max_rangle = (100000 * vel_mod) / BIRD_MAX_VEL;
-      rangle = rangle - (vy >> 1) * delta;
-      rangle = clamp(rangle, -max_rangle, max_rangle + 10000);
+      max_roll = (100000 * vel_mod) / BIRD_MAX_VEL;
+      roll = roll - (vy >> 1) * delta;
+      roll = clamp(roll, -max_roll, max_roll + 10000);
 
       // Aiming
       aim_angle_y = (BIRD_MAX_AIM_ANGLE * vy) / BIRD_MAX_VEL;
@@ -927,7 +927,7 @@ BEGIN
       y = py / G_RES;
       z = pz / G_RES;
 
-      graph = get_entity_angle_graph(base_graph, rangle);
+      graph = get_entity_angle_graph(base_graph, roll);
       FRAME;
    END
 
@@ -982,7 +982,7 @@ BEGIN
          shown_frames_left --;
       END
 
-      angle = father.rangle / G_TO_TRIGO_DIV; // trick: it will be almost normalized
+      angle = father.roll / G_TO_TRIGO_DIV; // trick: it will be almost normalized
       IF (angle < 0) angle += 3600; END       // but it could be negative
       px = father.px + pxd;
       py = father.py;
@@ -1310,7 +1310,7 @@ BEGIN
    write    (0, 270, 16, 0, "PZ");
    write_int(0, 290, 16, 0, &id_player.z);
    write    (0, 270, 24, 0, "ANG");
-   write_int(0, 290, 24, 0, &id_player.rangle);
+   write_int(0, 290, 24, 0, &id_player.roll);
 
    write    (0, 270, 40, 0, "PVX");
    write_int(0, 290, 40, 0, &id_player.vx);
