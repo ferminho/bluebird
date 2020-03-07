@@ -65,14 +65,17 @@ CONST
    BIRD_MAIN_GRAPH = 1;
    BIRD_AIM_DIST_X = 25000;
    BIRD_MAX_AIM_ANGLE = 600; // angle (TRIGO RES) at which TO shoot at max 2D speed
-   BIRD_FIRE_VULKAN_ACCEL = 2000; // in 0.5s it will be rolling at 1000 rps (firing speed)
-   BIRD_FIRE_VULKAN_DECCEL = 1000; // when at 1000 rps, in 1s it will stop rolling
-   BIRD_FIRE_INTERVAL = 125; // 8 bullets x 2 vulkans = 16 bullets per second!
 
    // Other ship properties
    FEN_CAR_SCALING = 80;
    FEN_CAR_FRONT_GRAPH = 1;
    FEN_CAR_BACK_GRAPH = 1 + ENTITY_ANGLES;
+
+   // Weapon properties
+   VULKAN_FIRE_ACCEL = 2000; // in 0.5s it will be rolling at 1000 rps (firing speed)
+   VULKAN_FIRE_DECCEL = 1000; // when at 1000 rps, in 1s it will stop rolling
+   VULKAN_FIRE_INTERVAL = 125; // 8 bullets x 2 vulkans (like in BlueBird) = 16 bullets per second!
+   VULKAN_SHOT_SPEED = 500; // units / s
 
    // Process priority
    PRIORITY_TIME_MASTER =     max_int;
@@ -992,7 +995,7 @@ BEGIN
       z = (pz / G_RES) - 5; // m8 positioning correction (half graph height)
 
       IF (action == ACTION_FIRE)
-         accel = rand((BIRD_FIRE_VULKAN_ACCEL * 50) / 100, BIRD_FIRE_VULKAN_ACCEL);
+         accel = rand((VULKAN_FIRE_ACCEL * 50) / 100, VULKAN_FIRE_ACCEL);
          rolling_speed += (accel * delta) / G_RES;
          IF (rolling_speed >= 1000)
             rolling_speed = 1000;
@@ -1002,12 +1005,12 @@ BEGIN
                   shown_frames_left = rand(20, 99) / 20;
                END
                bird_shot(px, py, pz, 5000, 0, 0);
-               next_bullet_time = global_time + BIRD_FIRE_INTERVAL;
+               next_bullet_time = global_time + VULKAN_FIRE_INTERVAL;
             END
          END
 
       ELSE
-         rolling_speed -= (BIRD_FIRE_VULKAN_DECCEL * delta) / G_RES;
+         rolling_speed -= (VULKAN_FIRE_DECCEL * delta) / G_RES;
          IF (rolling_speed <= 0)
             rolling_speed = 0;
             next_bullet_time = -1;
