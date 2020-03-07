@@ -871,8 +871,8 @@ BEGIN
    height = BIRD_2D_SIZE;
 
    sights = bird_sights();
-   vulkan_l = bird_vulkan(sights, 2500, -BIRD_HALF_2D_SIZE * 500, -BIRD_HALF_2D_SIZE * 500);
-   vulkan_r = bird_vulkan(sights, 2500, BIRD_HALF_2D_SIZE * 500, -BIRD_HALF_2D_SIZE * 500);
+   vulkan_l = bird_vulkan(2500, -BIRD_HALF_2D_SIZE * 500, -BIRD_HALF_2D_SIZE * 500);
+   vulkan_r = bird_vulkan(2500, BIRD_HALF_2D_SIZE * 500, -BIRD_HALF_2D_SIZE * 500);
 
    WHILE (game_status == binded_game_status)
 
@@ -903,16 +903,12 @@ BEGIN
       roll = roll - (vy >> 1) * delta;
       roll = clamp(roll, -max_roll, max_roll + 10000);
 
-      // Aiming
-      aim_angle_y = (BIRD_MAX_AIM_ANGLE * vy) / BIRD_MAX_VEL;
-      IF (aim_angle_y < 0) aim_angle_y += 3600; END
-      aim_angle_z = (BIRD_MAX_AIM_ANGLE * vz) / BIRD_MAX_VEL;
-      IF (aim_angle_z < 0) aim_angle_z += 3600; END
-      sights.px = px + BIRD_AIM_DIST_X;
-      sights.py = py;
-      sights.py += (BIRD_AIM_DIST_X * psin[aim_angle_y]) / G_RES;
-      sights.pz = pz + BIRD_HALF_2D_SIZE * G_RES;
-      sights.pz += (BIRD_AIM_DIST_X * psin[aim_angle_z]) / G_RES;
+      // Aiming (set 'aiming yaw & pitch' TO let sights AND vulkans update based on this)
+      // This yaw/angle & pitch will be ignored FOR drawing, it's meant only FOR aiming
+      angle = (BIRD_MAX_AIM_ANGLE * vy) / BIRD_MAX_VEL;
+      IF (angle < 0) angle += 3600; END
+      pitch = (BIRD_MAX_AIM_ANGLE * vz) / BIRD_MAX_VEL;
+      IF (pitch < 0) pitch += 3600; END
 
       // Shooting
       IF (input[I_PLAYER].fire)
@@ -949,6 +945,12 @@ BEGIN
 
    WHILE (game_status == binded_game_status)
 
+      px = father.px + BIRD_AIM_DIST_X;
+      py = father.py;
+      py += (BIRD_AIM_DIST_X * psin[father.angle]) / G_RES;
+      pz = father.pz + BIRD_HALF_2D_SIZE * G_RES;
+      pz += (BIRD_AIM_DIST_X * psin[father.pitch]) / G_RES;
+
       x = px / G_RES;
       y = py / G_RES;
       z = (pz / G_RES) - 10; // m8 positioning correction (half graph height)
@@ -959,7 +961,7 @@ END
 
 
 //--------------------------------------------
-PROCESS bird_vulkan(sights, INT pxd, INT pyd, INT pzd);
+PROCESS bird_vulkan(INT pxd, INT pyd, INT pzd);
 //--------------------------------------------
 PRIVATE
 
@@ -1004,7 +1006,7 @@ BEGIN
                   graph = 60 + rand(0, 299) / 100;
                   shown_frames_left = rand(20, 99) / 20;
                END
-               bird_shot(px, py, pz, 5000, 0, 0);
+               bird_shot(px, py, pz, father.angle, father.pitch);
                next_bullet_time = global_time + VULKAN_FIRE_INTERVAL;
             END
          END
@@ -1025,7 +1027,7 @@ END
 
 
 //--------------------------------------------
-PROCESS bird_shot(INT px, INT py, INT pz, INT vx, INT vy, INT vz);
+PROCESS bird_shot(INT px, INT py, INT pz, INT angle, INT pitch);
 //--------------------------------------------
 BEGIN
 
