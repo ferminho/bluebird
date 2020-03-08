@@ -18,7 +18,7 @@ CONST
    DEVELOPER_MODE = true;
    STARTING_LEVEL = 0;
    SKIP_LOGOS = true;
-   SKIP_MENU = false;
+   SKIP_MENU = true;
    SKIP_INTRO = true;
    LOGGING = true;
    LOG_FILE = "bluebird.log";
@@ -300,8 +300,11 @@ BEGIN
    time_master(); // this should always be running
    player_input(); // same goes FOR player input
 
-   menu_main();
-   //level(STARTING_LEVEL);
+   IF (!SKIP_MENU)
+      menu_main();
+   ELSE
+      level(STARTING_LEVEL);
+   END
 
 END
 //--------------------------------------------
