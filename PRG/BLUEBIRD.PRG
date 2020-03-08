@@ -66,7 +66,7 @@ CONST
    BIRD_MAX_VEL = 400; // "2D" speed
    BIRD_MAIN_GRAPH = 1;
    BIRD_AIM_DIST_X = 25000;
-   BIRD_MAX_AIM_ANGLE = 600; // angle (TRIGO RES) at which TO shoot at max 2D speed
+   BIRD_MAX_AIM_ANGLE = 35000; // angle (GRES) at which TO shoot at max 2D speed
 
    // Other ship properties
    FEN_CAR_SCALING = 80;
@@ -77,7 +77,7 @@ CONST
    VULKAN_FIRE_ACCEL = 2000; // in 0.5s it will be rolling at 1000 rps (firing speed)
    VULKAN_FIRE_DECCEL = 1000; // when at 1000 rps, in 1s it will stop rolling
    VULKAN_FIRE_INTERVAL = 125; // 8 bullets x 2 vulkans (like in BlueBird) = 16 bullets per second!
-   VULKAN_SHOT_SPEED = 500; // units / s
+   VULKAN_SHOT_SPEED = 1000; // units / s
 
    // Process priority
    PRIORITY_TIME_MASTER =     max_int;
@@ -885,6 +885,7 @@ BEGIN
       py += level_rail.teleport_pyd;
 
       // Movement
+      vx = id_rail_operator.vx; // saved but not applied directly
       vy += (input[I_PLAYER].x * 7 * delta) / G_RES;
       vz += (input[I_PLAYER].y * 7 * delta) / G_RES;
       vel_mod = sqrt(vy * vy + vz * vz);
@@ -911,9 +912,7 @@ BEGIN
       // Aiming (set 'aiming yaw & pitch' TO let sights AND vulkans update based on this)
       // This yaw/angle & pitch will be ignored FOR drawing, it's meant only FOR aiming
       angle = (BIRD_MAX_AIM_ANGLE * vy) / BIRD_MAX_VEL;
-      IF (angle < 0) angle += 3600; END
       pitch = (BIRD_MAX_AIM_ANGLE * vz) / BIRD_MAX_VEL;
-      IF (pitch < 0) pitch += 3600; END
 
       // Shooting
       IF (input[I_PLAYER].fire)
@@ -950,11 +949,16 @@ BEGIN
 
    WHILE (game_status == binded_game_status)
 
+      angle = father.angle MOD G_RES_360;
+      IF (angle < 0) angle += G_RES_360; END
+      pitch = father.pitch MOD G_RES_360;
+      IF (pitch < 0) pitch += G_RES_360; END
+
       px = father.px + BIRD_AIM_DIST_X;
       py = father.py;
-      py += (BIRD_AIM_DIST_X * psin[father.angle]) / G_RES;
+      py += (BIRD_AIM_DIST_X * psin[angle / G_TO_TRIGO_DIV]) / G_RES;
       pz = father.pz + BIRD_HALF_2D_SIZE * G_RES;
-      pz += (BIRD_AIM_DIST_X * psin[father.pitch]) / G_RES;
+      pz += (BIRD_AIM_DIST_X * psin[pitch / G_TO_TRIGO_DIV]) / G_RES;
 
       x = px / G_RES;
       y = py / G_RES;
@@ -983,6 +987,11 @@ BEGIN
    file = fpg_misc;
 
    WHILE (game_status == binded_game_status)
+      // keep velocity up-to-date as shots apply relative speed to father velocity
+      vx = father.vx;
+      vy = father.vy;
+      vz = father.vz;
+
       IF (shown_frames_left == 0)
          graph = 0;
       ELSE
@@ -1041,6 +1050,11 @@ BEGIN
    ctype = c_m8;
    file = fpg_misc;
    graph = 70;
+
+   apply_shperical_velocity(VULKAN_SHOT_SPEED, pitch, angle);
+   vx += father.vx;
+   vy += father.vy;
+   vz += father.vz;
 
    WHILE (game_status == binded_game_status
           AND action != ACTION_DIE)
@@ -1236,6 +1250,31 @@ END
 //--------------------------------------------
 
 
+//--------------------------------------------
+// Applies spherical vector to father vx,vy,vz
+// radius = vector radius/modulus in G_RES
+// theta = inclination (pitch) in G_RES
+// phi = azimuth/yaw in G_RES
+FUNCTION apply_shperical_velocity(INT radius, INT theta, INT phi);
+//--------------------------------------------
+BEGIN
+   // +90§ in -theta to adapt to the spherical system where theta grows from Z axis to +XY plane
+   theta = (-theta + G_RES_90) MOD G_RES_360;
+   IF (theta < 0) theta += G_RES_360; END
+   theta /= G_TO_TRIGO_DIV;
+   phi = phi MOD G_RES_360;
+   IF (phi < 0) phi+= G_RES_360; END
+   phi /= G_TO_TRIGO_DIV;
+
+   father.vx = radius;
+   father.vx = (father.vx * psin[theta]) / G_RES;
+   father.vx = (father.vx * pcos[phi]) / G_RES;
+   father.vy = radius;
+   father.vy = (father.vx * psin[theta]) / G_RES;
+   father.vy = (father.vx * psin[phi]) / G_RES;
+   father.vz = (radius * pcos[theta]) / G_RES;
+END
+//--------------------------------------------
 
 
 // ----------------------------------------------------------
