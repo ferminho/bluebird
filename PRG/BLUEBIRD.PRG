@@ -37,6 +37,8 @@ CONST
    G_RES = 1000;        // GLOBAL RESOLUTION / precision TO be used throughout all processes
    TRIGO_RES = 10;      // Resolution FOR trigonometry
    G_TO_TRIGO_DIV = 100;// From GLOBAL TO trigo resolution division (multiply IF the other way around)
+   G_RES_90 = 90 * G_RES;
+   G_RES_360 = 360 * G_RES;
 
    // Camera properties
    HFOV = 72000;
@@ -49,7 +51,7 @@ CONST
 
    // Dynamic graph definitions
    ENTITY_ANGLES = 32;
-   ENTITY_ANGLE_STEP = 360000 / ENTITY_ANGLES;
+   ENTITY_ANGLE_STEP = G_RES_360 / ENTITY_ANGLES;
 
    // Bird properties
    BIRD_SCALING = 15;   // %
@@ -1051,7 +1053,6 @@ BEGIN
       y = py / G_RES;
       z = (pz / G_RES) - 2; // m8 positioning correction (half graph height)
 
-      m7.z = is_inside_current_area();
       IF (is_inside_current_area())
          FRAME;
       ELSE
@@ -1186,8 +1187,8 @@ FUNCTION get_entity_angle_graph(base_graph, INT angle);
 //--------------------------------------------
 BEGIN
 
-   angle = angle MOD 360000;
-   IF (angle < 0) angle+= 360000; END
+   angle = angle MOD G_RES_360;
+   IF (angle < 0) angle += G_RES_360; END
    RETURN(base_graph + (angle / ENTITY_ANGLE_STEP));
 
 END
