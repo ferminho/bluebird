@@ -748,12 +748,12 @@ BEGIN
    y = father.py;
    z = father.pz;
 
-   RETURN(x >= level_rail.area_min_px
-          AND x <= level_rail.area_max_px
-          AND y >= level_rail.area_min_py
-          AND y <= level_rail.area_max_py
-          AND z >= level_rail.area_min_pz
-          AND z <= level_rail.area_max_pz);
+   RETURN(x > level_rail.area_min_px
+          AND x < level_rail.area_max_px
+          AND y > level_rail.area_min_py
+          AND y < level_rail.area_max_py
+          AND z > level_rail.area_min_pz
+          AND z < level_rail.area_max_pz);
 END
 //--------------------------------------------
 
