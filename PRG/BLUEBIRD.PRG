@@ -78,6 +78,7 @@ CONST
    VULKAN_FIRE_DECCEL = 1000; // when at 1000 rps, in 1s it will stop rolling
    VULKAN_FIRE_INTERVAL = 125; // 8 bullets x 2 vulkans (like in BlueBird) = 16 bullets per second!
    VULKAN_SHOT_SPEED = 1000; // units / s
+   VULKAN_SHOT_RADIUS = 4;
 
    // Process priority
    PRIORITY_TIME_MASTER =     max_int;
@@ -92,7 +93,7 @@ CONST
    // Mode8
    MAIN_M8 = 0;
    MAX_M8_COORD = 30208 * G_RES;
-
+   M8_DEFAULT_STEP = 0; // no wallclimb by default
    M8_Z_OFFSET = 7;
 
    // Menu navigation
@@ -943,6 +944,7 @@ BEGIN
    priority = PRIORITY_BIRD_SIGHTS;
    binded_game_status = game_status;
    ctype = c_m8;
+   m8_step = M8_DEFAULT_STEP;
    file = fpg_misc;
    graph = 50;
    flags = 4;
@@ -984,6 +986,7 @@ BEGIN
    priority = PRIORITY_BIRD_VULKANS;
    binded_game_status = game_status;
    ctype = c_m8;
+   m8_step = M8_DEFAULT_STEP;
    file = fpg_misc;
 
    WHILE (game_status == binded_game_status)
@@ -1048,6 +1051,8 @@ BEGIN
    priority = PRIORITY_BIRD_SHOT;
    binded_game_status = game_status;
    ctype = c_m8;
+   m8_step = M8_DEFAULT_STEP;
+   radius = VULKAN_SHOT_RADIUS;
    file = fpg_misc;
    graph = 70;
 
@@ -1065,7 +1070,7 @@ BEGIN
 
       x = px / G_RES;
       y = py / G_RES;
-      z = (pz / G_RES) - 2; // m8 positioning correction (half graph height)
+      z = (pz / G_RES) - (radius / 2); // m8 positioning correction
 
       IF (is_inside_current_area())
          FRAME;
@@ -1258,7 +1263,7 @@ END
 FUNCTION apply_shperical_velocity(INT radius, INT theta, INT phi);
 //--------------------------------------------
 BEGIN
-   // +90§ in -theta to adapt to the spherical system where theta grows from Z axis to +XY plane
+   // +90ï¿½ in -theta to adapt to the spherical system where theta grows from Z axis to +XY plane
    theta = (-theta + G_RES_90) MOD G_RES_360;
    IF (theta < 0) theta += G_RES_360; END
    theta /= G_TO_TRIGO_DIV;
