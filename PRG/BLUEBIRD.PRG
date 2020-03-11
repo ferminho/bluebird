@@ -78,7 +78,7 @@ CONST
    VULKAN_FIRE_DECCEL = 1000; // when at 1000 rps, in 1s it will stop rolling
    VULKAN_FIRE_INTERVAL = 125; // 8 bullets x 2 vulkans (like in BlueBird) = 16 bullets per second!
    VULKAN_SHOT_SPEED = 1000; // units / s
-   VULKAN_SHOT_RADIUS = 5;
+   VULKAN_SHOT_RADIUS = 10;
 
    // Process priority
    PRIORITY_TIME_MASTER =     max_int;
@@ -729,8 +729,8 @@ BEGIN
    level_rail.area_max_px = level_rail.area_min_px + levels[lev].coords.area_width * G_RES;
    level_rail.area_min_py = grid_i * grid.cell_height;
    level_rail.area_max_py = level_rail.area_min_py + levels[lev].coords.area_height * G_RES;
-   level_rail.area_min_pz = levels[lev].coords.area_z_abs_range[0] * G_RES; // FOR now, fixed
-   level_rail.area_max_pz = levels[lev].coords.area_z_abs_range[1] * G_RES; // FOR now, fixed
+   level_rail.area_min_pz = 0;
+   level_rail.area_max_pz = 4095 * G_RES;
 
    // Make everyone jump TO the candidate block/area
    level_rail.teleport_pxd = x - level_rail.px;
@@ -1052,6 +1052,8 @@ PRIVATE
    // movement must be performed in radius-sized steps to avoid crossing walls
    INT steps; // number of steps to be performed
    INT current_step; // current step number (0-based)
+   INT floor_z, INT ceiling_z;
+   at_floor = false, at_ceiling = false;
 
 BEGIN
 
@@ -1060,6 +1062,7 @@ BEGIN
    ctype = c_m8;
    m8_step = M8_DEFAULT_STEP;
    radius = VULKAN_SHOT_RADIUS;
+   height = VULKAN_SHOT_RADIUS;
    file = fpg_misc;
    graph = 70;
 
@@ -1086,16 +1089,21 @@ BEGIN
          current_step ++;
          x = (px + ((pxd * current_step) / steps)) / G_RES;
          y = (py + ((pyd * current_step) / steps)) / G_RES;
-         z = (pz + ((pzd * current_step) / steps)) / G_RES - (radius / 2);
+         z = (pz + ((pzd * current_step) / steps)) / G_RES - 2; // m8 position correction
          FRAME(0);
-      UNTIL (current_step >= steps OR m8_wall != -1)
+         IF (m8_sector != -1) // during first frame it is -1
+            get_sector_height(m8_sector, OFFSET floor_z, OFFSET ceiling_z);
+            at_floor = z < (floor_z + height);
+            at_ceiling = z > (ceiling_z - height);
+         END
+      UNTIL (current_step >= steps OR m8_wall != -1 OR at_floor OR at_ceiling)
 
       // update pxyz with latest position, which could be any mid-position
       px += (pxd * current_step) / steps;
       py += (pyd * current_step) / steps;
       pz += (pzd * current_step) / steps;
 
-      IF (is_inside_current_area() AND m8_wall == -1)
+      IF (is_inside_current_area() AND m8_wall == -1 AND !at_floor AND !at_ceiling)
          FRAME;
       ELSE
          action = ACTION_DIE;
