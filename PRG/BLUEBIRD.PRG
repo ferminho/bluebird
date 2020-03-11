@@ -18,7 +18,7 @@ CONST
    DEVELOPER_MODE = true;
    STARTING_LEVEL = 0;
    SKIP_LOGOS = true;
-   SKIP_MENU = false;
+   SKIP_MENU = true;
    SKIP_INTRO = true;
    LOGGING = true;
    LOG_FILE = "bluebird.log";
@@ -37,6 +37,8 @@ CONST
    G_RES = 1000;        // GLOBAL RESOLUTION / precision TO be used throughout all processes
    TRIGO_RES = 10;      // Resolution FOR trigonometry
    G_TO_TRIGO_DIV = 100;// From GLOBAL TO trigo resolution division (multiply IF the other way around)
+   G_RES_90 = 90 * G_RES;
+   G_RES_360 = 360 * G_RES;
 
    // Camera properties
    HFOV = 72000;
@@ -49,7 +51,7 @@ CONST
 
    // Dynamic graph definitions
    ENTITY_ANGLES = 32;
-   ENTITY_ANGLE_STEP = 360000 / ENTITY_ANGLES;
+   ENTITY_ANGLE_STEP = G_RES_360 / ENTITY_ANGLES;
 
    // Bird properties
    BIRD_SCALING = 15;   // %
@@ -64,15 +66,19 @@ CONST
    BIRD_MAX_VEL = 400; // "2D" speed
    BIRD_MAIN_GRAPH = 1;
    BIRD_AIM_DIST_X = 25000;
-   BIRD_MAX_AIM_ANGLE = 600; // angle (TRIGO RES) at which TO shoot at max 2D speed
-   BIRD_FIRE_VULKAN_ACCEL = 2000; // in 0.5s it will be rolling at 1000 rps (firing speed)
-   BIRD_FIRE_VULKAN_DECCEL = 1000; // when at 1000 rps, in 1s it will stop rolling
-   BIRD_FIRE_INTERVAL = 125; // 8 bullets x 2 vulkans = 16 bullets per second!
+   BIRD_MAX_AIM_ANGLE = 35000; // angle (GRES) at which TO shoot at max 2D speed
 
    // Other ship properties
    FEN_CAR_SCALING = 80;
    FEN_CAR_FRONT_GRAPH = 1;
    FEN_CAR_BACK_GRAPH = 1 + ENTITY_ANGLES;
+
+   // Weapon properties
+   VULKAN_FIRE_ACCEL = 2000; // in 0.5s it will be rolling at 1000 rps (firing speed)
+   VULKAN_FIRE_DECCEL = 1000; // when at 1000 rps, in 1s it will stop rolling
+   VULKAN_FIRE_INTERVAL = 125; // 8 bullets x 2 vulkans (like in BlueBird) = 16 bullets per second!
+   VULKAN_SHOT_SPEED = 1000; // units / s
+   VULKAN_SHOT_RADIUS = 10;
 
    // Process priority
    PRIORITY_TIME_MASTER =     max_int;
@@ -87,7 +93,7 @@ CONST
    // Mode8
    MAIN_M8 = 0;
    MAX_M8_COORD = 30208 * G_RES;
-
+   M8_DEFAULT_STEP = 0; // no wallclimb by default
    M8_Z_OFFSET = 7;
 
    // Menu navigation
@@ -112,6 +118,7 @@ CONST
 
    // Action system
    ACTION_NONE = 0;
+   ACTION_DIE = 1;  // kill the PROCESS, NOT dying in terms of character death
    // Camera actions
    ACTION_SPECTATE_PLAYER = 10;
    // Rail actions
@@ -155,6 +162,7 @@ GLOBAL
          INT area_width;
          INT area_height;
          INT area_gap;
+         // "Range" stands FOR the rail box dimensions definition. X AND Z are absolute values, Y is relative
          WORD area_x_abs_range[1];
          INT area_y_rel_range[1];
          WORD area_z_abs_range[1];
@@ -182,12 +190,17 @@ GLOBAL
       // Block_area: current area INDEX within block (first = 0, second = 1...)
       // Area: current area (area ID, FROM 0 TO n depending on grid size)
       INT block, INT block_cycle, INT block_area, INT area;
-      // Limits of the flyable zone in G_RES
-      INT min_y, INT max_y;
-      INT min_z, INT max_z;
+      // Rail box limits in G_RES (the box moves with the rail alongside the X axis)
+      INT box_min_py, INT box_max_py;
+      INT box_min_pz, INT box_max_pz;
+      // Area absolute limits in G_RES, updated after every area change
+      INT area_min_px, INT area_max_px;
+      INT area_min_py, INT area_max_py;
+      INT area_min_pz, INT area_max_pz;
+
    END
 
-   // World grid info
+   // World grid info in G_RES
    STRUCT grid
       INT x0, INT y0, INT x1;
       INT cell_width, INT cell_height;
@@ -241,8 +254,8 @@ LOCAL
    // Precision coordinates in G_RES resolution. This pz is meant FOR m8, NOT z-depth
    INT px, INT py, INT pz;
 
-   // Roll angle (remember usual angle is yaw in m8)
-   INT rangle;
+   // Roll, pitch angles (remember old "angle" is yaw in m8)
+   INT roll, pitch;
    // Graph FOR entity angle 0 (first angle STEP)
    base_graph;
 
@@ -290,8 +303,11 @@ BEGIN
    time_master(); // this should always be running
    player_input(); // same goes FOR player input
 
-   menu_main();
-   //level(STARTING_LEVEL);
+   IF (!SKIP_MENU)
+      menu_main();
+   ELSE
+      level(STARTING_LEVEL);
+   END
 
 END
 //--------------------------------------------
@@ -550,10 +566,6 @@ END
 //--------------------------------------------
 PROCESS rail_operator();
 //--------------------------------------------
-PRIVATE
-
-   INT rel_min_y, INT rel_max_y;
-
 BEGIN
 
    action = ACTION_NONE;
@@ -576,13 +588,6 @@ BEGIN
    level_rail.teleport_pxd = 0; // don't propagate teleport info this time
    level_rail.teleport_pyd = 0;
 
-   rel_min_y = levels[lev].coords.area_y_rel_range[0] * G_RES;
-   rel_max_y = levels[lev].coords.area_y_rel_range[1] * G_RES;
-   level_rail.min_y = py + rel_min_y;
-   level_rail.max_y = py + rel_max_y;
-   level_rail.min_z = levels[lev].coords.area_z_abs_range[0] * G_RES;
-   level_rail.max_z = levels[lev].coords.area_z_abs_range[1] * G_RES;
-
    vx = BIRD_STD_SPEED;
 
    WHILE (game_status == binded_game_status)
@@ -596,9 +601,6 @@ BEGIN
 
             px += level_rail.teleport_pxd;
             py += level_rail.teleport_pyd;
-
-            level_rail.min_y = py + rel_min_y;
-            level_rail.max_y = py + rel_max_y;
          ELSE
             level_rail.teleport_pxd = 0;
             level_rail.teleport_pyd = 0;
@@ -656,9 +658,13 @@ PRIVATE
    STRING str;
    INT str_length;
    is_first_cycle, is_last_area, enemies_alive, flag_rwe, flag_fc;
+   INT rel_min_y, INT rel_max_y;
    INT grid_i, INT grid_j; // position within grid matrix (i, j) i = row, j = col
 
 BEGIN
+
+   rel_min_y = levels[lev].coords.area_y_rel_range[0] * G_RES;
+   rel_max_y = levels[lev].coords.area_y_rel_range[1] * G_RES;
 
    IF (level_rail.block == -1)
       // First block/area
@@ -712,10 +718,42 @@ BEGIN
    x = grid.x0 + (grid_j * grid.cell_width); // in G_RES
    y = grid.y0 + (grid_i * grid.cell_height); // in G_RES
 
-   // jump TO the candidate block/area
+   // Update rail box limits
+   level_rail.box_min_py = y + rel_min_y;
+   level_rail.box_max_py = y + rel_max_y;
+   level_rail.box_min_pz = levels[lev].coords.area_z_abs_range[0] * G_RES;
+   level_rail.box_max_pz = levels[lev].coords.area_z_abs_range[1] * G_RES;
+
+   // Update area limits
+   level_rail.area_min_px = grid_j * grid.cell_width;
+   level_rail.area_max_px = level_rail.area_min_px + levels[lev].coords.area_width * G_RES;
+   level_rail.area_min_py = grid_i * grid.cell_height;
+   level_rail.area_max_py = level_rail.area_min_py + levels[lev].coords.area_height * G_RES;
+   level_rail.area_min_pz = 0;
+   level_rail.area_max_pz = 4095 * G_RES;
+
+   // Make everyone jump TO the candidate block/area
    level_rail.teleport_pxd = x - level_rail.px;
    level_rail.teleport_pyd = y - level_rail.py;
 
+END
+//--------------------------------------------
+
+
+//--------------------------------------------
+FUNCTION is_inside_current_area();
+//--------------------------------------------
+BEGIN
+   x = father.px;
+   y = father.py;
+   z = father.pz;
+
+   RETURN(x > level_rail.area_min_px
+          AND x < level_rail.area_max_px
+          AND y > level_rail.area_min_py
+          AND y < level_rail.area_max_py
+          AND z > level_rail.area_min_pz
+          AND z < level_rail.area_max_pz);
 END
 //--------------------------------------------
 
@@ -819,7 +857,7 @@ PRIVATE
 
    INT vel_mod;
    INT clamp_factor;
-   INT max_rangle;
+   INT max_roll;
    sights, vulkan_l, vulkan_r;
    INT aim_angle_y, INT aim_angle_z; // aim angles in G_RES
 
@@ -839,8 +877,8 @@ BEGIN
    height = BIRD_2D_SIZE;
 
    sights = bird_sights();
-   vulkan_l = bird_vulkan(sights, 2500, -BIRD_HALF_2D_SIZE * 500, -BIRD_HALF_2D_SIZE * 500);
-   vulkan_r = bird_vulkan(sights, 2500, BIRD_HALF_2D_SIZE * 500, -BIRD_HALF_2D_SIZE * 500);
+   vulkan_l = bird_vulkan(2500, -BIRD_HALF_2D_SIZE * 500, -BIRD_HALF_2D_SIZE * 500);
+   vulkan_r = bird_vulkan(2500, BIRD_HALF_2D_SIZE * 500, -BIRD_HALF_2D_SIZE * 500);
 
    WHILE (game_status == binded_game_status)
 
@@ -848,6 +886,7 @@ BEGIN
       py += level_rail.teleport_pyd;
 
       // Movement
+      vx = id_rail_operator.vx; // saved but not applied directly
       vy += (input[I_PLAYER].x * 7 * delta) / G_RES;
       vz += (input[I_PLAYER].y * 7 * delta) / G_RES;
       vel_mod = sqrt(vy * vy + vz * vz);
@@ -861,26 +900,20 @@ BEGIN
       py += vy * delta;
       pz += vz * delta;
 
-      IF (py < level_rail.min_y) py = level_rail.min_y; vy = 0; END
-      IF (py > level_rail.max_y) py = level_rail.max_y; vy = 0; END
-      IF (pz < level_rail.min_z) pz = level_rail.min_z; vz = 0; END
-      IF (pz > level_rail.max_z) pz = level_rail.max_z; vz = 0; END
+      IF (py < level_rail.box_min_py) py = level_rail.box_min_py; vy = 0; END
+      IF (py > level_rail.box_max_py) py = level_rail.box_max_py; vy = 0; END
+      IF (pz < level_rail.box_min_pz) pz = level_rail.box_min_pz; vz = 0; END
+      IF (pz > level_rail.box_max_pz) pz = level_rail.box_max_pz; vz = 0; END
 
       // Rolling
-      max_rangle = (100000 * vel_mod) / BIRD_MAX_VEL;
-      rangle = rangle - (vy >> 1) * delta;
-      rangle = clamp(rangle, -max_rangle, max_rangle + 10000);
+      max_roll = (100000 * vel_mod) / BIRD_MAX_VEL;
+      roll = roll - (vy >> 1) * delta;
+      roll = clamp(roll, -max_roll, max_roll + 10000);
 
-      // Aiming
-      aim_angle_y = (BIRD_MAX_AIM_ANGLE * vy) / BIRD_MAX_VEL;
-      IF (aim_angle_y < 0) aim_angle_y += 3600; END
-      aim_angle_z = (BIRD_MAX_AIM_ANGLE * vz) / BIRD_MAX_VEL;
-      IF (aim_angle_z < 0) aim_angle_z += 3600; END
-      sights.px = px + BIRD_AIM_DIST_X;
-      sights.py = py;
-      sights.py += (BIRD_AIM_DIST_X * psin[aim_angle_y]) / G_RES;
-      sights.pz = pz + BIRD_HALF_2D_SIZE * G_RES;
-      sights.pz += (BIRD_AIM_DIST_X * psin[aim_angle_z]) / G_RES;
+      // Aiming (set 'aiming yaw & pitch' TO let sights AND vulkans update based on this)
+      // This yaw/angle & pitch will be ignored FOR drawing, it's meant only FOR aiming
+      angle = (BIRD_MAX_AIM_ANGLE * vy) / BIRD_MAX_VEL;
+      pitch = (BIRD_MAX_AIM_ANGLE * vz) / BIRD_MAX_VEL;
 
       // Shooting
       IF (input[I_PLAYER].fire)
@@ -895,7 +928,7 @@ BEGIN
       y = py / G_RES;
       z = pz / G_RES;
 
-      graph = get_entity_angle_graph(base_graph, rangle);
+      graph = get_entity_angle_graph(base_graph, roll);
       FRAME;
    END
 
@@ -911,11 +944,23 @@ BEGIN
    priority = PRIORITY_BIRD_SIGHTS;
    binded_game_status = game_status;
    ctype = c_m8;
+   m8_step = M8_DEFAULT_STEP;
    file = fpg_misc;
    graph = 50;
    flags = 4;
 
    WHILE (game_status == binded_game_status)
+
+      angle = father.angle MOD G_RES_360;
+      IF (angle < 0) angle += G_RES_360; END
+      pitch = father.pitch MOD G_RES_360;
+      IF (pitch < 0) pitch += G_RES_360; END
+
+      px = father.px + BIRD_AIM_DIST_X;
+      py = father.py;
+      py += (BIRD_AIM_DIST_X * psin[angle / G_TO_TRIGO_DIV]) / G_RES;
+      pz = father.pz + BIRD_HALF_2D_SIZE * G_RES;
+      pz += (BIRD_AIM_DIST_X * psin[pitch / G_TO_TRIGO_DIV]) / G_RES;
 
       x = px / G_RES;
       y = py / G_RES;
@@ -927,7 +972,7 @@ END
 
 
 //--------------------------------------------
-PROCESS bird_vulkan(sights, INT pxd, INT pyd, INT pzd);
+PROCESS bird_vulkan(INT pxd, INT pyd, INT pzd);
 //--------------------------------------------
 PRIVATE
 
@@ -941,17 +986,23 @@ BEGIN
    priority = PRIORITY_BIRD_VULKANS;
    binded_game_status = game_status;
    ctype = c_m8;
+   m8_step = M8_DEFAULT_STEP;
    file = fpg_misc;
 
    WHILE (game_status == binded_game_status)
+      // keep velocity up-to-date as shots apply relative speed to father velocity
+      vx = father.vx;
+      vy = father.vy;
+      vz = father.vz;
+
       IF (shown_frames_left == 0)
          graph = 0;
       ELSE
          shown_frames_left --;
       END
 
-      angle = father.rangle / G_TO_TRIGO_DIV; // trick: it will be almost normalized
-      IF (angle < 0) angle += 3600; END      // but it could be negative
+      angle = father.roll / G_TO_TRIGO_DIV; // trick: it will be almost normalized
+      IF (angle < 0) angle += 3600; END       // but it could be negative
       px = father.px + pxd;
       py = father.py;
       pz = father.pz + (BIRD_HALF_2D_SIZE * G_RES);
@@ -963,7 +1014,7 @@ BEGIN
       z = (pz / G_RES) - 5; // m8 positioning correction (half graph height)
 
       IF (action == ACTION_FIRE)
-         accel = rand((BIRD_FIRE_VULKAN_ACCEL * 50) / 100, BIRD_FIRE_VULKAN_ACCEL);
+         accel = rand((VULKAN_FIRE_ACCEL * 50) / 100, VULKAN_FIRE_ACCEL);
          rolling_speed += (accel * delta) / G_RES;
          IF (rolling_speed >= 1000)
             rolling_speed = 1000;
@@ -972,13 +1023,13 @@ BEGIN
                   graph = 60 + rand(0, 299) / 100;
                   shown_frames_left = rand(20, 99) / 20;
                END
-               bird_shot(px, py, pz, 5000, 0, 0);
-               next_bullet_time = global_time + BIRD_FIRE_INTERVAL;
+               bird_shot(px, py, pz, father.angle, father.pitch);
+               next_bullet_time = global_time + VULKAN_FIRE_INTERVAL;
             END
          END
 
       ELSE
-         rolling_speed -= (BIRD_FIRE_VULKAN_DECCEL * delta) / G_RES;
+         rolling_speed -= (VULKAN_FIRE_DECCEL * delta) / G_RES;
          IF (rolling_speed <= 0)
             rolling_speed = 0;
             next_bullet_time = -1;
@@ -993,28 +1044,70 @@ END
 
 
 //--------------------------------------------
-PROCESS bird_shot(INT px, INT py, INT pz, INT vx, INT vy, INT vz);
+PROCESS bird_shot(INT px, INT py, INT pz, INT angle, INT pitch);
 //--------------------------------------------
+PRIVATE
+
+   INT pxd, INT pyd, INT pzd; // precision coord deltas (quantity to move each frame)
+   // movement must be performed in radius-sized steps to avoid crossing walls
+   INT steps; // number of steps to be performed
+   INT current_step; // current step number (0-based)
+   INT floor_z, INT ceiling_z;
+   at_floor = false, at_ceiling = false;
+
 BEGIN
 
    priority = PRIORITY_BIRD_SHOT;
    binded_game_status = game_status;
    ctype = c_m8;
+   m8_step = M8_DEFAULT_STEP;
+   radius = VULKAN_SHOT_RADIUS;
+   height = VULKAN_SHOT_RADIUS;
    file = fpg_misc;
    graph = 70;
 
+   apply_shperical_velocity(VULKAN_SHOT_SPEED, pitch, angle);
+   vx += father.vx;
+   vy += father.vy;
+   vz += father.vz;
+   x = px / G_RES;
+   y = py / G_RES;
+   z = pz / G_RES;
+   steps = (sqrt(vx * vx + vy * vy + vz * vz) + radius - 1) / radius; // radius-1 = manual way of doing 'ceil'
+
    WHILE (game_status == binded_game_status
-          AND abs(px - father.px) < 2000000
-          AND m8_wall < 0)
+          AND action != ACTION_DIE)
 
-      px += (level_rail.teleport_pxd) + vx * delta;
-      py += (level_rail.teleport_pyd) + vy * delta;
-      pz += vz * delta;
+      px += level_rail.teleport_pxd;
+      py += level_rail.teleport_pyd;
 
-      x = px / G_RES;
-      y = py / G_RES;
-      z = (pz / G_RES) - 2; // m8 positioning correction (half graph height)
-      FRAME;
+      pxd = vx * delta;
+      pyd = vy * delta;
+      pzd = vz * delta;
+
+      REPEAT
+         current_step ++;
+         x = (px + ((pxd * current_step) / steps)) / G_RES;
+         y = (py + ((pyd * current_step) / steps)) / G_RES;
+         z = (pz + ((pzd * current_step) / steps)) / G_RES - 2; // m8 position correction
+         FRAME(0);
+         IF (m8_sector != -1) // during first frame it is -1
+            get_sector_height(m8_sector, OFFSET floor_z, OFFSET ceiling_z);
+            at_floor = z < (floor_z + height);
+            at_ceiling = z > (ceiling_z - height);
+         END
+      UNTIL (current_step >= steps OR m8_wall != -1 OR at_floor OR at_ceiling)
+
+      // update pxyz with latest position, which could be any mid-position
+      px += (pxd * current_step) / steps;
+      py += (pyd * current_step) / steps;
+      pz += (pzd * current_step) / steps;
+
+      IF (is_inside_current_area() AND m8_wall == -1 AND !at_floor AND !at_ceiling)
+         FRAME;
+      ELSE
+         action = ACTION_DIE;
+      END
    END
 END
 //--------------------------------------------
@@ -1144,8 +1237,8 @@ FUNCTION get_entity_angle_graph(base_graph, INT angle);
 //--------------------------------------------
 BEGIN
 
-   angle = angle MOD 360000;
-   IF (angle < 0) angle+= 360000; END
+   angle = angle MOD G_RES_360;
+   IF (angle < 0) angle += G_RES_360; END
    RETURN(base_graph + (angle / ENTITY_ANGLE_STEP));
 
 END
@@ -1193,6 +1286,31 @@ END
 //--------------------------------------------
 
 
+//--------------------------------------------
+// Applies spherical vector to father vx,vy,vz
+// radius = vector radius/modulus in G_RES
+// theta = inclination (pitch) in G_RES
+// phi = azimuth/yaw in G_RES
+FUNCTION apply_shperical_velocity(INT radius, INT theta, INT phi);
+//--------------------------------------------
+BEGIN
+   // +90� in -theta to adapt to the spherical system where theta grows from Z axis to +XY plane
+   theta = (-theta + G_RES_90) MOD G_RES_360;
+   IF (theta < 0) theta += G_RES_360; END
+   theta /= G_TO_TRIGO_DIV;
+   phi = phi MOD G_RES_360;
+   IF (phi < 0) phi+= G_RES_360; END
+   phi /= G_TO_TRIGO_DIV;
+
+   father.vx = radius;
+   father.vx = (father.vx * psin[theta]) / G_RES;
+   father.vx = (father.vx * pcos[phi]) / G_RES;
+   father.vy = radius;
+   father.vy = (father.vx * psin[theta]) / G_RES;
+   father.vy = (father.vx * psin[phi]) / G_RES;
+   father.vz = (radius * pcos[theta]) / G_RES;
+END
+//--------------------------------------------
 
 
 // ----------------------------------------------------------
@@ -1273,7 +1391,7 @@ BEGIN
    write    (0, 270, 16, 0, "PZ");
    write_int(0, 290, 16, 0, &id_player.z);
    write    (0, 270, 24, 0, "ANG");
-   write_int(0, 290, 24, 0, &id_player.rangle);
+   write_int(0, 290, 24, 0, &id_player.roll);
 
    write    (0, 270, 40, 0, "PVX");
    write_int(0, 290, 40, 0, &id_player.vx);
