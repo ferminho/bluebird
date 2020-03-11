@@ -78,7 +78,7 @@ CONST
    VULKAN_FIRE_DECCEL = 1000; // when at 1000 rps, in 1s it will stop rolling
    VULKAN_FIRE_INTERVAL = 125; // 8 bullets x 2 vulkans (like in BlueBird) = 16 bullets per second!
    VULKAN_SHOT_SPEED = 1000; // units / s
-   VULKAN_SHOT_RADIUS = 4;
+   VULKAN_SHOT_RADIUS = 5;
 
    // Process priority
    PRIORITY_TIME_MASTER =     max_int;
@@ -1046,6 +1046,13 @@ END
 //--------------------------------------------
 PROCESS bird_shot(INT px, INT py, INT pz, INT angle, INT pitch);
 //--------------------------------------------
+PRIVATE
+
+   INT pxd, INT pyd, INT pzd; // precision coord deltas (quantity to move each frame)
+   // movement must be performed in radius-sized steps to avoid crossing walls
+   INT steps; // number of steps to be performed
+   INT current_step; // current step number (0-based)
+
 BEGIN
 
    priority = PRIORITY_BIRD_SHOT;
@@ -1060,19 +1067,35 @@ BEGIN
    vx += father.vx;
    vy += father.vy;
    vz += father.vz;
+   x = px / G_RES;
+   y = py / G_RES;
+   z = pz / G_RES;
+   steps = (sqrt(vx * vx + vy * vy + vz * vz) + radius - 1) / radius; // radius-1 = manual way of doing 'ceil'
 
    WHILE (game_status == binded_game_status
           AND action != ACTION_DIE)
 
-      px += (level_rail.teleport_pxd) + vx * delta;
-      py += (level_rail.teleport_pyd) + vy * delta;
-      pz += vz * delta;
+      px += level_rail.teleport_pxd;
+      py += level_rail.teleport_pyd;
 
-      x = px / G_RES;
-      y = py / G_RES;
-      z = (pz / G_RES) - (radius / 2); // m8 positioning correction
+      pxd = vx * delta;
+      pyd = vy * delta;
+      pzd = vz * delta;
 
-      IF (is_inside_current_area())
+      REPEAT
+         current_step ++;
+         x = (px + ((pxd * current_step) / steps)) / G_RES;
+         y = (py + ((pyd * current_step) / steps)) / G_RES;
+         z = (pz + ((pzd * current_step) / steps)) / G_RES - (radius / 2);
+         FRAME(0);
+      UNTIL (current_step >= steps OR m8_wall != -1)
+
+      // update pxyz with latest position, which could be any mid-position
+      px += (pxd * current_step) / steps;
+      py += (pyd * current_step) / steps;
+      pz += (pzd * current_step) / steps;
+
+      IF (is_inside_current_area() AND m8_wall == -1)
          FRAME;
       ELSE
          action = ACTION_DIE;
