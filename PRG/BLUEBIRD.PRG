@@ -18,7 +18,7 @@ CONST
    DEVELOPER_MODE = true;
    STARTING_LEVEL = 0;
    SKIP_LOGOS = true;
-   SKIP_MENU = true;
+   SKIP_MENU = false;
    SKIP_INTRO = true;
    LOGGING = true;
    LOG_FILE = "bluebird.log";
@@ -27,11 +27,15 @@ CONST
    SCREEN_RES = m320x240;
    SCREEN_WIDTH = 320;
    SCREEN_HEIGHT = 240;
+   SCREEN_HALF_WIDTH = 160;
    SCREEN_RESTORE = no_restore; // no_restore, partial_restore, complete_restore
    SCREEN_DUMP = complete_dump; // partial_dump, complete_dump
    TARGET_FPS = 100;
    MAX_FRAMESKIP = 2;
-   MAIN_REGION = 1;
+
+   MAIN_REGION = 0;
+   PLAYER1_REGION = 1;
+   PLAYER2_REGION = 2;
 
    // Math and physics
    G_RES = 1000;        // GLOBAL RESOLUTION / precision to be used throughout all processes
@@ -85,13 +89,26 @@ CONST
    PRIORITY_CAMERA =          -100000;
 
    // Mode8
-   MAIN_M8 = 0;
+   PLAYER1_M8 = 0;
+   PLAYER2_M8 = 1;
+
    MAX_M8_COORD = 30208 * G_RES;
+
    M8_Z_OFFSET = 7;
 
    // Menu navigation
-   MENU_QUIT = 0;
-   MENU_START_GAME = 1;
+   MENU_STATE_ENTERING = 0;
+   MENU_STATE_RUNNING = 1;
+   MENU_STATE_EXITING = 2;
+
+   MENU_ACTION_NONE = 0;
+   MENU_ACTION_ENTER = 1;
+   MENU_ACTION_EXIT = 2;
+
+   MENU_ITEM_Y = 100;
+   MENU_ITEM_HEIGHT = 20;
+   MENU_ITEM_DELAY = 10;
+   MENU_ITEM_DEFAULT = -1;
 
    // Effects
    FADE_SPEED = 10; // standard fade speed for transitions
@@ -113,8 +130,11 @@ CONST
    LEVEL_DEF_FILE = "levels.dat";
    LEVEL_MAX_LEVELS = 10;
    LEVEL_MAX_BLOCKS = 100;
+
    BLOCK_FLAG_REPEAT_WHILE_ENEMIES = 1; // obvious
    BLOCK_FLAG_FULL_CYCLES = 2;          // if repeating, never finish mid-cycle, always complete cycle
+
+   TIMER_GLOBAL = 9;
 
 GLOBAL
 
@@ -185,15 +205,19 @@ GLOBAL
    fpg_bird;  // FPG handle of bird library
    fpg_flying_enemies;  // FPG handle of flying enemies library
    fpg_misc;   // FPG handle of misc sprites
+   fpg_wave;
    wld_level;  // WLD handle of current level
+   fnt_menu;
 
    // Resources: enemy base graphs
    INT base_graphs[1];
 
    // Important processes
    id_rail_operator;
-   id_camera;
-   id_player;
+   id_camera_player1;
+   id_camera_player2;
+   id_player1;
+   id_player2;
 
    // Game logic timing (transformed)
    INT delta;
@@ -214,6 +238,10 @@ GLOBAL
    INT ptan[3599];
    INT half_hfov_tan; // tan of half the HFOV
    INT half_vfov_tan; // tan of half the VFOV
+
+   STRUCT menu
+     state, action, num_items, shown_items, active_item;
+   END
 
 LOCAL
 
@@ -238,9 +266,6 @@ BEGIN
 
    init();
 
-   orchestrator();
-
-   let_me_alone();
    log_formatted("[Footer]", false);
 
 END
@@ -263,14 +288,25 @@ BEGIN
    load(BASE_PATH + LEVEL_DEF_FILE, &levels);
 
    set_mode(SCREEN_RES);
-   restore_type = SCREEN_RESTORE;
-   dump_type = SCREEN_DUMP;
+   // I've changed this because the menu is
+   // wrongly rendered.
+   //restore_type = SCREEN_RESTORE;
+   //dump_type = SCREEN_DUMP;
    set_fps(TARGET_FPS, MAX_FRAMESKIP);
    define_region(MAIN_REGION, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
    init_precalculated_trigonometry();
+
    time_master(); // this should always be running
    player_input(); // same goes for player input
+
+   force_pal(BASE_PATH + "pal\bluebird.pal");
+   fnt_menu = load_fnt(BASE_PATH + "fnt\orbitron.fnt");
+
+   // Menu principal.
+   menu_main();
+   //level(STARTING_LEVEL);
+
 END
 //--------------------------------------------
 
@@ -279,97 +315,184 @@ END
 // ------------- GAME STATUS MANAGEMENT
 // ----------------------------------------------------------
 
+//--------------------------------------------
+// Menu item.
+//--------------------------------------------
+process menu_item(pointer text)
+private
+  index, timer_start;
+begin
+  index = menu.num_items;
+
+  menu.num_items++;
+
+  graph = write_in_map(fnt_menu, text, 0);
+  y = MENU_ITEM_Y + (index * MENU_ITEM_HEIGHT);
+
+  if (menu.active_item == index)
+    flags = 0;
+  else
+    flags = 4;
+  end
+
+  // Menu item enters.
+  timer_start = timer + ((index + 1) * 25);
+  while (timer - timer_start < 25)
+    x = quadratic(25, clamp(timer - timer_start, 0, 50), -100, 75, 50);
+    frame;
+  end
+  x = 50;
+
+  // Increments shown items. When shown_items
+  // are equal to num_items, the menu_loop
+  // passes from MENU_STATE_ENTERING to
+  // MENU_STATE_RUNNING.
+  menu.shown_items++;
+
+  // While we didn't choose anything, we
+  // keep executing this.
+  while (menu.action == MENU_ACTION_NONE)
+    if (menu.active_item == index)
+      flags = 0;
+      x = linear(100, 25, x, 60);
+    else
+      flags = 4;
+      x = linear(100, 25, x, 50);
+    end
+    frame;
+  end
+
+  timer_start = timer + ((index + 1) * 25);
+  while (timer - timer_start < 25)
+    x = quadratic(25, clamp(timer - timer_start, 0, 50), 50, 75, -100);
+    frame;
+  end
+  x = 50;
+
+  menu.shown_items--;
+
+end
 
 //--------------------------------------------
-FUNCTION orchestrator();
+// Main menu
 //--------------------------------------------
-PRIVATE
+process menu_main()
+begin
+  menu_reset(0);
 
-   selection;
+  menu_item("Un jugador");
+  menu_item("Dos jugadores");
+  menu_item("Opciones");
+  menu_item("Creditos");
+  menu_item("Salir");
 
-BEGIN
+  menu_loop();
 
-   fade(0, 0, 0, 64);
+  if (menu.action == MENU_ACTION_ENTER)
+    switch (menu.active_item)
+      case 0:
+        level(STARTING_LEVEL, 1);
+      end
+      case 1:
+        level(STARTING_LEVEL, 2);
+      end
+      case 2:
+        // TODO: Opciones
+        menu_not_implemented();
+      end
+      case 3:
+        // TODO: Creditos
+        menu_not_implemented();
+      end
+      case 4:
+        menu_exit();
+      end
+    end
+  end
 
-   display_logos();
-
-   LOOP
-      selection = show_menu();
-
-      IF (selection == 0)
-        RETURN;
-      END
-      IF (selection == 1)
-         play_game();
-      END
-   END
-END
-//--------------------------------------------
-
-
-//--------------------------------------------
-FUNCTION display_logos();
-//--------------------------------------------
-BEGIN
-
-   game_status = id;
-   IF (SKIP_LOGOS)
-      log("Skipped logos");
-   ELSE
-      // TODO: implement logos display
-   END
-
-END
-//--------------------------------------------
-
-
-//--------------------------------------------
-FUNCTION show_menu();
-//--------------------------------------------
-BEGIN
-
-   game_status = id;
-   IF (SKIP_MENU)
-      log("Skipped menus");
-   ELSE
-      // TODO: implement menus
-   END
-
-   RETURN(1);
-END
-//--------------------------------------------
-
+  if (menu.action == MENU_ACTION_EXIT)
+    menu_exit();
+  end
+end
 
 //--------------------------------------------
-FUNCTION play_game();
+// Resets menu options.
 //--------------------------------------------
-BEGIN
-
-   play_intro();
-   play_level(STARTING_LEVEL);
-
-END
-//--------------------------------------------
-
-
-//--------------------------------------------
-FUNCTION play_intro();
-//--------------------------------------------
-BEGIN
-
-   game_status = id;
-   IF (SKIP_INTRO)
-      log("Skipped intro");
-   ELSE
-      // TODO: implement intro
-   END
-
-END
-//--------------------------------------------
-
+function menu_reset(active_item)
+begin
+  menu.num_items = 0;
+  if (menu.active_item >= 0)
+    menu.active_item = active_item;
+  end
+end
 
 //--------------------------------------------
-FUNCTION play_level(INT new_level);
+//
+//
+//
+//--------------------------------------------
+function menu_loop()
+begin
+  menu.state = MENU_STATE_ENTERING;
+  while (menu.shown_items < menu.num_items)
+    frame;
+  end
+  menu.state = MENU_STATE_RUNNING;
+  while (menu.action == MENU_ACTION_NONE)
+    if (key(_up) or joy.up)
+      menu.active_item--;
+      if (menu.active_item < 0)
+        menu.active_item = menu.num_items - 1;
+      end
+      wait(MENU_ITEM_DELAY);
+    end
+
+    if (key(_down) or joy.down)
+      menu.active_item++;
+      if (menu.active_item >= menu.num_items)
+        menu.active_item = 0;
+      end
+      wait(MENU_ITEM_DELAY);
+    end
+
+    if (key(_space) or key(_enter) or joy.button1)
+      menu.action = MENU_ACTION_ENTER;
+      wait(MENU_ITEM_DELAY);
+    end
+
+    if (key(_esc) or joy.button2)
+      menu.action = MENU_ACTION_EXIT;
+      wait(MENU_ITEM_DELAY);
+    end
+    frame;
+  end
+  menu.state = MENU_STATE_EXITING;
+  while (menu.shown_items > 0)
+    frame;
+  end
+end
+
+//--------------------------------------------
+// Exit
+//--------------------------------------------
+function menu_exit()
+begin
+  exit("Gracias por jugar!", 0);
+end
+
+//--------------------------------------------
+// Exit with warning.
+//--------------------------------------------
+function menu_not_implemented()
+begin
+  exit("No implementado :(", 1);
+end
+
+//--------------------------------------------
+
+
+//--------------------------------------------
+PROCESS level(INT new_level, INT num_players);
 //--------------------------------------------
 BEGIN
 
@@ -387,11 +510,25 @@ BEGIN
    load_level_resources(new_level);
 
    post_process();
-   id_rail_operator = rail_operator();
-   id_camera = camera();
-   id_player = bird();
 
-   start_mode8(id_camera, MAIN_M8, MAIN_REGION);
+   id_rail_operator = rail_operator();
+
+
+   if (num_players >= 1)
+     id_player1 = bird();
+     id_camera_player1 = camera(id_player1);
+     start_mode8(id_camera_player1, PLAYER1_M8, PLAYER1_REGION);
+     id_camera_player1.action = ACTION_SPECTATE_PLAYER;
+     define_region(PLAYER1_REGION, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+   end
+   if (num_players == 2)
+     id_player2 = bird();
+     id_camera_player2 = camera(id_player2);
+     start_mode8(id_camera_player2, PLAYER2_M8, PLAYER2_REGION);
+     id_camera_player2.action = ACTION_SPECTATE_PLAYER;
+     define_region(PLAYER1_REGION, 0, 0, SCREEN_HALF_WIDTH, SCREEN_HEIGHT);
+     define_region(PLAYER2_REGION, SCREEN_HALF_WIDTH, 0, SCREEN_HALF_WIDTH, SCREEN_HEIGHT);
+   end
    set_env_color(levels[lev].visual.fog_color[0],
                  levels[lev].visual.fog_color[1],
                  levels[lev].visual.fog_color[2]);
@@ -405,7 +542,6 @@ BEGIN
    fade_and_wait(100, 100, 100, FADE_SPEED);
 
    id_rail_operator.action = ACTION_ACTIVATE_RAIL;
-   id_camera.action = ACTION_SPECTATE_PLAYER;
 
    LOOP
       FRAME;
@@ -425,7 +561,6 @@ END
 PROCESS player_input();
 //--------------------------------------------
 BEGIN
-
    LOOP
       input[I_PLAYER].x            = 0;
       input[I_PLAYER].y            = 0;
@@ -442,7 +577,6 @@ BEGIN
 
       FRAME;
    END
-
 END
 //--------------------------------------------
 
@@ -636,7 +770,7 @@ END
 
 
 //--------------------------------------------
-PROCESS camera();
+PROCESS camera(player_id);
 //--------------------------------------------
 PRIVATE
 
@@ -685,18 +819,18 @@ BEGIN
       target_z = level_rail.pz;
 
       IF (action == ACTION_SPECTATE_PLAYER)
-         player_dx = id_player.x - level_rail.x;
+         player_dx = player_id.x - level_rail.x;
          player_hres = player_dx * 2 * half_hfov_tan;
          player_vres = player_dx * 2 * half_vfov_tan;
 
          IF (player_hres < rail_y_range)
-            player_ratio = ((id_player.y - level_rail.y) * G_RES) / half_rail_y_range;
+            player_ratio = ((player_id.y - level_rail.y) * G_RES) / half_rail_y_range;
             camera_max_pos = (rail_y_range - player_hres) / 2;
             target_y += (camera_max_pos / G_RES) * player_ratio;
          END
 
          IF (player_vres < rail_z_range)
-            player_ratio = id_player.z + BIRD_HALF_2D_SIZE; // position correction
+            player_ratio = player_id.z + BIRD_HALF_2D_SIZE; // position correction
             player_ratio = ((player_ratio - level_rail.z) * G_RES) / half_rail_z_range;
             camera_max_pos = (rail_z_range - player_vres) / 2;
             target_z += ((camera_max_pos / G_RES) * player_ratio) - (GROUND_MARGIN * G_RES);
@@ -727,6 +861,7 @@ PRIVATE
    INT max_rangle;
    sights, vulkan_l, vulkan_r;
    INT aim_angle_y, INT aim_angle_z; // aim angles in G_RES
+   INT z_floor, z_ceiling;
 
 BEGIN
 
@@ -748,6 +883,7 @@ BEGIN
    vulkan_r = bird_vulkan(sights, 2500, BIRD_HALF_2D_SIZE * 500, -BIRD_HALF_2D_SIZE * 500);
 
    WHILE (game_status == binded_game_status)
+      get_sector_height(m8_sector, offset z_floor, offset z_ceiling);
 
       px = level_rail.px + (BIRD_STD_DISTANCE * G_RES);
       py += level_rail.teleport_pyd;
@@ -799,6 +935,11 @@ BEGIN
       x = px / G_RES;
       y = py / G_RES;
       z = pz / G_RES;
+
+      // Water splash waves.
+      IF (z - z_floor < 32)
+        wave(x, y, z_floor, linear(32, z - z_floor, 0, 100));
+      END
 
       graph = get_entity_angle_graph(base_graph, rangle);
       FRAME;
@@ -924,6 +1065,19 @@ BEGIN
 END
 //--------------------------------------------
 
+PROCESS wave(x, y, z, size)
+PRIVATE
+  timer_start;
+BEGIN
+  ctype = c_m8;
+  file = fpg_wave;
+  timer_start = timer;
+  WHILE (timer - timer_start < 50)
+    graph = linear(50, timer - timer_start, 1, 4);
+    FRAME;
+  END
+END
+
 
 //--------------------------------------------
 PROCESS flying_enemy();
@@ -950,6 +1104,7 @@ BEGIN
    fpg_bird = load_fpg(BASE_PATH + "fpg\bird.fpg");
    fpg_flying_enemies = load_fpg(BASE_PATH + "fpg\fen.fpg");
    fpg_misc = load_fpg(BASE_PATH + "fpg\misc.fpg");
+   fpg_wave = load_fpg(BASE_PATH + "fpg\wave.fpg");
    log("Loaded resources for level " + itoa(new_level));
 
    preprocess_resources();
@@ -1156,11 +1311,11 @@ PROCESS write_debug_info();
 BEGIN
 
    write    (0, 0 , 0 , 0, "CX");
-   write_int(0, 20, 0 , 0, &id_camera.x);
+   write_int(0, 20, 0 , 0, &id_camera_player1.x);
    write    (0, 0 , 8 , 0, "CY");
-   write_int(0, 20, 8 , 0, &id_camera.y);
+   write_int(0, 20, 8 , 0, &id_camera_player1.y);
    write    (0, 0 , 16, 0, "CZ");
-   write_int(0, 20, 16, 0, &id_camera.z);
+   write_int(0, 20, 16, 0, &id_camera_player1.z);
 
    write    (0, 0 , 32, 0, "FPS");
    write_int(0, 20, 32, 0, &fps);
@@ -1172,20 +1327,20 @@ BEGIN
    write_int(0, 20, 56, 0, &global_time);
 
    write    (0, 270, 0 , 0, "PX");
-   write_int(0, 290, 0 , 0, &id_player.x);
+   write_int(0, 290, 0 , 0, &id_player1.x);
    write    (0, 270, 8 , 0, "PY");
-   write_int(0, 290, 8 , 0, &id_player.y);
+   write_int(0, 290, 8 , 0, &id_player1.y);
    write    (0, 270, 16, 0, "PZ");
-   write_int(0, 290, 16, 0, &id_player.z);
+   write_int(0, 290, 16, 0, &id_player1.z);
    write    (0, 270, 24, 0, "ANG");
-   write_int(0, 290, 24, 0, &id_player.rangle);
+   write_int(0, 290, 24, 0, &id_player1.rangle);
 
    write    (0, 270, 40, 0, "PVX");
-   write_int(0, 290, 40, 0, &id_player.vx);
+   write_int(0, 290, 40, 0, &id_player1.vx);
    write    (0, 270, 48, 0, "PVY");
-   write_int(0, 290, 48, 0, &id_player.vy);
+   write_int(0, 290, 48, 0, &id_player1.vy);
    write    (0, 270, 56, 0, "PVZ");
-   write_int(0, 290, 56, 0, &id_player.vz);
+   write_int(0, 290, 56, 0, &id_player1.vz);
 
    write    (0, 270, 72, 0, "BLK");
    write_int(0, 290, 72, 0, &level_rail.block);
@@ -1249,3 +1404,36 @@ BEGIN
 
 END
 //--------------------------------------------
+
+function wait(delay)
+private
+  timer_start;
+begin
+  timer_start = timer[TIMER_GLOBAL];
+  while (timer[TIMER_GLOBAL] - timer_start < delay)
+    frame;
+  end
+end
+
+function linear(r, p, a, b)
+begin
+  return ( (( (r - p) * a ) + ( p * b )) / r );
+end
+
+function quadratic(r, p, a, b, c)
+private
+  d, e;
+begin
+  d = linear(r, p, a, b);
+  e = linear(r, p, b, c);
+  return (linear(r, p, d, e));
+end
+
+function cubic(r, p, a, b, c, d)
+private
+  e, f;
+begin
+  e = quadratic(r, p, a, b, c);
+  f = quadratic(r, p, b, c, d);
+  return (linear(r, p, e, f));
+end
